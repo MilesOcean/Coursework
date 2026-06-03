@@ -1,461 +1,273 @@
-# Honor of Kings Information Management System — Class Design
+# Honor of Kings Information Management System — Project Plan
+
+> This plan strictly follows the 12-section structure required by §8 of the assignment.
 
 ---
 
-## 1. Package Structure
+## 1. Project Goal
 
-```
-src/
-├── model/                    # Domain / entity classes
-│   ├── Person.java           (abstract)
-│   ├── Player.java
-│   ├── Admin.java
-│   ├── Hero.java
-│   ├── Equipment.java
-│   ├── Team.java
-│   └── MatchRecord.java
-├── enums/                    # Enumerations
-│   ├── Role.java
-│   ├── HeroClass.java
-│   ├── Rank.java
-│   ├── MatchResult.java
-│   └── EquipmentType.java
-├── interfaces/               # Interfaces
-│   ├── Authenticatable.java
-│   ├── Rankable.java
-│   └── CsvPersistable.java
-├── service/                  # Business logic / orchestration
-│   ├── AuthService.java
-│   ├── HeroService.java
-│   ├── TeamService.java
-│   ├── MatchService.java
-│   ├── LeaderboardService.java
-│   └── FileService.java
-├── util/                     # Shared utilities
-│   ├── CsvUtil.java
-│   ├── PasswordUtil.java
-│   └── Validator.java
-└── Main.java                 # Entry point / CLI menu
-```
+Build a **console-based Java application** that manages Honor of Kings (王者荣耀) information: players, heroes, equipment, teams, and match history. The system supports two user roles (Admin / Player), simple login/logout, and reads/writes data from CSV files in `data/`.
 
-Data directory (outside `src/`):
+The application must demonstrate the core Java concepts taught in this course: classes, inheritance, abstract classes, interfaces, polymorphism, enums, collections, generics, file I/O, and exception handling. All deliverables (plan, design, UML, tests, AI logs) follow the structure required in §9–§11.
 
-```
-data/
-├── players.csv
-├── heroes.csv
-├── equipment.csv
-├── teams.csv
-└── matches.csv
-```
+**Out of scope:** GUI, network play, real-time match simulation, database.
 
 ---
 
-## 2. Enums
+## 2. Requirement Analysis
 
-### `Role`
-| Value   | Description                  |
-|---------|------------------------------|
-| PLAYER  | Regular game player          |
-| ADMIN   | System administrator         |
+### 2.1 Player Lookup
+Search a player by ID or name. Show ID, name, team, level, win rate, owned heroes, and each hero's equipped items. If no match → clear error, no crash.
 
-### `HeroClass`
-| Value     | Description       |
-|-----------|-------------------|
-| WARRIOR   | Melee fighter     |
-| MAGE      | Magic damage      |
-| ASSASSIN  | Burst / flank     |
-| MARKSMAN  | Ranged AD carry   |
-| SUPPORT   | Heal / utility    |
-| TANK      | Damage sponge     |
+### 2.2 Team Overview
+Search a team by ID or name. Show all members, average level, total matches, win rate, and the top player (by win rate, level as tiebreaker).
 
-### `Rank`
-| Value       | Ordinal | Description        |
-|-------------|---------|--------------------|
-| BRONZE      | 0       |                     |
-| SILVER      | 1       |                     |
-| GOLD        | 2       |                     |
-| PLATINUM    | 3       |                     |
-| DIAMOND     | 4       |                     |
-| MASTER      | 5       |                     |
-| GRANDMASTER | 6       |                     |
-| LEGEND      | 7       | Highest tier        |
+### 2.3 Hero Details
+Search a hero by name. Show name, hero type, base stats, compatible equipment, and players who own the hero.
 
-### `MatchResult`
-| Value | Description      |
-|-------|------------------|
-| WIN   | Team won         |
-| LOSE  | Team lost        |
-| DRAW  | Tie (rare)       |
+### 2.4 Equipment Statistics
+Rank equipment by **usage count**. Tie → alphabetical by name.
 
-### `EquipmentType`
-| Value    | Description          |
-|----------|----------------------|
-| ATTACK   | Physical damage      |
-| DEFENSE  | Armour / HP          |
-| MAGIC    | Ability power        |
-| MOVEMENT | Speed / boots        |
-| JUNGLE   | Jungle item          |
-| SUPPORT  | Warding / utility    |
+### 2.5 Match History
+Retrieve the last N matches for a player or team: opponent, date, result, heroes picked, win/loss record, hero pick rate.
+
+### 2.6 Leaderboard
+Top X players by win rate. Tie order: win rate → level → name (alphabetical).
+
+### 2.7 Data Management
+- **Admin:** add / edit / delete players, heroes, equipment, teams, match records.
+- **Player:** view own info, edit limited personal info, view heroes/teams/matches/leaderboard.
+
+### 2.8 Authentication
+Simple login/logout with two roles (Admin / Player). Passwords stored as SHA-256 hash with per-user salt; CSV never stores plain text.
 
 ---
 
-## 3. Interfaces
+## 3. Java Concepts Used
 
-### `Authenticatable`
-```java
-// Defines the contract for any class that can authenticate.
-boolean login(String username, String password);
-void logout();
-boolean isAuthenticated();
-```
-- Implemented by: `Person` (abstract — shared by both `Player` and `Admin`).
-
-### `Rankable`
-```java
-// Defines the contract for any class that participates in ranked ordering.
-int getRankValue();       // returns the ordinal of the Rank enum
-Rank getRank();
-void setRank(Rank rank);
-```
-- Implemented by: `Player`, `Team` (teams also have a rank).
-- Extends `Comparable<T>` to support natural ordering in `Collections.sort()`.
-
-### `CsvPersistable`
-```java
-// Defines the contract for objects that can be serialized to/from CSV rows.
-String toCsvRow();
-static T fromCsvRow(String row);   // factory method (per implementing class)
-```
-- Implemented by: `Player`, `Hero`, `Equipment`, `Team`, `MatchRecord`.
-- This gives `FileService` a uniform way to read/write each entity type.
+| Concept              | Where it appears                                                              |
+|----------------------|-------------------------------------------------------------------------------|
+| Class / Object       | All `model/` classes                                                          |
+| Abstract class       | `Person`                                                                      |
+| Inheritance          | `Player extends Person`, `Admin extends Person`                               |
+| Interface            | `Authenticatable`, `Rankable`, `CsvPersistable`                               |
+| Polymorphism         | `Person ref → Player / Admin`; service methods accept interface types         |
+| Enum                 | `Role`, `HeroType`, `Rank`, `MatchResult`, `EquipmentType`                    |
+| Collections          | `List<Hero>`, `Map<Hero, List<Equipment>>`, `Set<String>`                     |
+| Generics             | `CsvUtil<T>`, `List<Player>`, `Map<K,V>`                                      |
+| File I/O             | `FileService` reads/writes CSV in `data/`                                     |
+| Exception handling   | `try/catch` around I/O; custom `ValidationException`                          |
+| Lambda / Streams     | Sorting leaderboard, filtering matches                                        |
+| Static utility       | `PasswordUtil`, `Validator`, `CsvUtil`                                        |
 
 ---
 
-## 4. Model Classes — Responsibilities & Relationships
+## 4. Class Design
 
-### 4.1 `Person` (abstract)
-**Role:** Base class for all human actors in the system.
+### 4.1 Package Structure
 
-| Field          | Type              | Notes                           |
-|----------------|-------------------|---------------------------------|
-| id             | String            | UUID                            |
-| username       | String            | Unique, login credential        |
-| hashedPassword | String            | SHA-256 hashed                  |
-| nickname       | String            | Display name                    |
-| registrationDate | LocalDateTime   | Account creation timestamp      |
-| authenticated  | boolean           | Session flag (transient)        |
+    src/
+    ├── model/
+    │   ├── Person.java (abstract)
+    │   ├── Player.java
+    │   ├── Admin.java
+    │   ├── Hero.java
+    │   ├── Equipment.java
+    │   ├── Team.java
+    │   └── MatchRecord.java
+    ├── enums/
+    │   ├── Role.java
+    │   ├── HeroType.java
+    │   ├── Rank.java
+    │   ├── MatchResult.java
+    │   └── EquipmentType.java
+    ├── interfaces/
+    │   ├── Authenticatable.java
+    │   ├── Rankable.java
+    │   └── CsvPersistable.java
+    ├── service/
+    │   ├── AuthService.java
+    │   ├── HeroService.java
+    │   ├── PlayerService.java
+    │   ├── TeamService.java
+    │   ├── MatchService.java
+    │   ├── LeaderboardService.java
+    │   └── FileService.java
+    ├── util/
+    │   ├── CsvUtil.java
+    │   ├── PasswordUtil.java
+    │   └── Validator.java
+    └── Main.java
 
-| Method              | Purpose                                   |
-|---------------------|-------------------------------------------|
-| `login(u, p)`       | Validate credentials, set `authenticated` |
-| `logout()`          | Clear `authenticated` flag                |
-| `changePassword()`  | Update hash after old-password check      |
-| `getRole()`         | **abstract** → returns `Role` enum        |
+### 4.2 Enums
 
-**Relationships:** None outward. `Player` and `Admin` extend it.
+| Enum            | Values                                                                            |
+|-----------------|-----------------------------------------------------------------------------------|
+| `Role`          | PLAYER, ADMIN                                                                     |
+| `HeroType`      | WARRIOR, MAGE, ASSASSIN, MARKSMAN, SUPPORT, TANK                                  |
+| `Rank`          | BRONZE, SILVER, GOLD, PLATINUM, DIAMOND, MASTER, GRANDMASTER, LEGEND              |
+| `MatchResult`   | WIN, LOSE, DRAW                                                                   |
+| `EquipmentType` | ATTACK, DEFENSE, MAGIC, MOVEMENT, JUNGLE, SUPPORT                                 |
 
----
+### 4.3 Interfaces
 
-### 4.2 `Player` extends `Person`
-**Role:** A game player who owns heroes, joins a team, and plays matches.
+- **`Authenticatable`** — `login(u,p)`, `logout()`, `isAuthenticated()`. Implemented by `Person`.
+- **`Rankable`** — `getRankValue()`, `getRank()`, `setRank(Rank)`. Implemented by `Player`, `Team`.
+- **`CsvPersistable`** — `toCsvRow(): String`. Implemented by all entities that go to CSV.
 
-| Field          | Type                 | Notes                          |
-|----------------|----------------------|--------------------------------|
-| rank           | Rank                 | Current competitive tier       |
-| heroPool       | List\<Hero\>          | Heroes the player owns         |
-| ownedEquipment | List\<Equipment\>     | Equipment inventory            |
-| matchHistory   | List\<MatchRecord\>   | All past matches               |
-| team           | Team                 | Current team (nullable)        |
-| winCount       | int                  | Total wins                     |
-| totalGames     | int                  | Total matches played           |
+### 4.4 Key Classes
 
-| Method                  | Purpose                                  |
-|-------------------------|------------------------------------------|
-| `addHero(Hero)`         | Add hero to pool                         |
-| `removeHero(Hero)`      | Remove hero from pool                    |
-| `joinTeam(Team)`        | Assign to a team                         |
-| `leaveTeam()`           | Leave current team                       |
-| `getWinRate()`          | Returns `winCount / totalGames` as %     |
-| `getRankValue()`        | Delegates to `rank.ordinal()`            |
-
-**Relationships:**
-- Owns: `Hero` (1:N), `Equipment` (1:N), `MatchRecord` (1:N)
-- Belongs to: `Team` (N:1, optional)
-
----
-
-### 4.3 `Admin` extends `Person`
-**Role:** System administrator who manages heroes and players.
-
-| Field        | Type             | Notes                       |
-|--------------|------------------|-----------------------------|
-| adminLevel   | int              | 1 = junior, 2 = senior …    |
-| managedTeams | List\<Team\>      | Teams under supervision     |
-
-| Method                     | Purpose                           |
-|----------------------------|-----------------------------------|
-| `createHero(…)`            | Add a new hero to the catalogue   |
-| `removeHero(Hero)`         | Delete a hero                     |
-| `banPlayer(Player)`        | Disable a player account          |
-| `unbanPlayer(Player)`      | Re-enable a player account        |
-| `manageTeam(Team)`         | Assign team to admin supervision  |
-
-**Relationships:**
-- Manages: `Team` (1:N), implicitly `Player` (via ban/unban)
+| Class         | Key fields                                                                                  | Key methods                              |
+|---------------|---------------------------------------------------------------------------------------------|------------------------------------------|
+| `Person`      | id, username, passwordHash, salt, nickname                                                  | `getRole()` abstract                     |
+| `Player`      | level, rank, winCount, matchCount, heroPool, equippedItems, teamId                          | `getWinRate()`                           |
+| `Admin`       | managedTeamIds                                                                              | `getRole()` → ADMIN                      |
+| `Hero`        | id, name, type, baseAttack, baseDefense, baseHp, compatibleEquipmentIds                     | `toCsvRow()`                             |
+| `Equipment`   | id, name, type, price, statBonuses                                                          | `toCsvRow()`                             |
+| `Team`        | id, name, captainId, rank, memberIds                                                        | `getAverageLevel()`, `getTopPlayer()`    |
+| `MatchRecord` | id, date, team1Id, team2Id, result, heroPicks, mvpPlayerId, durationMinutes                 | `toCsvRow()`                             |
 
 ---
 
-### 4.4 `Hero`
-**Role:** A playable character in the game.
+## 5. UML Draft
 
-| Field      | Type                    | Notes                          |
-|------------|-------------------------|--------------------------------|
-| id         | String                  | UUID                           |
-| name       | String                  | Unique hero name               |
-| heroClass  | HeroClass               | Warrior / Mage / …             |
-| difficulty | int                     | 1–10                           |
-| skills     | List\<String\>           | Skill names (4 per hero)       |
-| baseStats  | Map\<String, Integer\>   | HP, ATK, DEF, SPD, …          |
-| winRate    | double                  | Aggregate across all players   |
+The final UML class diagram is exported as **`docs/uml.png`** (generated from `docs/uml.puml`). Draft summary:
 
-| Method              | Purpose                              |
-|---------------------|--------------------------------------|
-| `updateStats(…)`    | Recalculate base stats               |
-| `addSkill(String)`  | Add a skill name                     |
-| `compareTo(Hero)`   | By win rate (for leaderboard)        |
-
-**Relationships:**
-- Belongs to: `Player` (N:1 via `heroPool`)
-- Used in: `MatchRecord` via `participants` map
+    Authenticatable (I)        Rankable (I)        CsvPersistable (I)
+            ▲                       ▲                     ▲
+            │                       │                     │
+       Person (abstract) ◄── implements                   │
+            ▲                                             │
+       ┌────┴────┐                                        │
+     Player    Admin     Hero, Equipment, Team, MatchRecord
+       │                       all implement CsvPersistable
+       │ owns *           Player, Team also implement Rankable
+       ├──► Hero ──*── compatible ──*── Equipment
+       └──► Team ◄── * members
+             ▲
+             │ 2 participants
+       MatchRecord
 
 ---
 
-### 4.5 `Equipment`
-**Role:** An item that boosts hero stats.
+## 6. Data Design
 
-| Field       | Type                  | Notes                         |
-|-------------|-----------------------|-------------------------------|
-| id          | String                | UUID                          |
-| name        | String                | e.g. "Blade of Despair"       |
-| type        | EquipmentType         | Attack / Defense / …          |
-| statBonuses | Map\<String, Integer\> | e.g. {ATK: +60, SPD: +5}     |
-| price       | int                   | Gold cost                     |
-| description | String                | Flavour text                  |
+All data lives in `data/` as UTF-8 CSV with a header row. Primary keys are bold.
 
-**Relationships:**
-- Owned by: `Player` (N:1 via `ownedEquipment`)
+| File             | Columns                                                                                                              |
+|------------------|----------------------------------------------------------------------------------------------------------------------|
+| `players.csv`    | **id**, username, passwordHash, salt, nickname, level, rank, winCount, matchCount, teamId                            |
+| `admins.csv`     | **id**, username, passwordHash, salt, nickname, managedTeamIds                                                        |
+| `heroes.csv`     | **id**, name, type, baseAttack, baseDefense, baseHp, compatibleEquipmentIds (`;`-separated)                          |
+| `equipment.csv`  | **id**, name, type, price, attackBonus, defenseBonus, magicBonus, description                                        |
+| `teams.csv`      | **id**, name, captainId, rank, memberIds (`;`-separated)                                                              |
+| `matches.csv`    | **id**, date (YYYY-MM-DD), team1Id, team2Id, result, mvpPlayerId, durationMinutes, heroPicks (`team1:h1;h2\|team2:h3;h4`) |
+| `loadouts.csv`   | **playerId**, **heroId**, equipmentIds (`;`-separated)                                                                |
 
----
+**Relations:** Player.teamId → Team.id; Team.memberIds → Player.id; MatchRecord.team*Id → Team.id; Loadout (playerId, heroId) → Player + Hero; equipmentIds → Equipment.id.
 
-### 4.6 `Team`
-**Role:** A group of players who compete together.
-
-| Field        | Type            | Notes                         |
-|--------------|-----------------|-------------------------------|
-| id           | String          | UUID                          |
-| name         | String          | Unique team name              |
-| members      | List\<Player\>   | Max 5 players                 |
-| captain      | Player          | Team leader                   |
-| creationDate | LocalDate       |                               |
-| rank         | Rank            | Aggregate team rank           |
-
-| Method                       | Purpose                                 |
-|------------------------------|-----------------------------------------|
-| `addMember(Player)`          | Add player (enforce ≤ 5)                |
-| `removeMember(Player)`       | Remove player; reassign captain if needed |
-| `setCaptain(Player)`         | Change captain (must be member)         |
-| `getAverageRankValue()`      | Average of member ranks, rounded down   |
-| `isFull()`                   | `members.size() >= 5`                   |
-
-**Relationships:**
-- Contains: `Player` (1:N, via `members`)
-- Has: one `Player` as `captain`
+**Integrity rules:** referential integrity checked on load; orphaned references logged and skipped; `winCount ≤ matchCount`; team size 1–5.
 
 ---
 
-### 4.7 `MatchRecord`
-**Role:** Historical record of a single match between two teams.
+## 7. AI Usage Plan
 
-| Field        | Type                          | Notes                          |
-|--------------|-------------------------------|--------------------------------|
-| id           | String                        | UUID                           |
-| matchDate    | LocalDateTime                 | When the match occurred        |
-| team1        | Team                          | First team                     |
-| team2        | Team                          | Second team                    |
-| result       | MatchResult                   | Outcome for team1              |
-| duration     | int                           | Match length in seconds        |
-| mvp          | Player                        | Most valuable player           |
-| participants | Map\<Player, Hero\>            | Which hero each player used    |
+AI (ChatGPT) will be used as a **planning assistant and code reviewer**, never as a blind code generator. Planned use cases:
 
-| Method                | Purpose                                   |
-|-----------------------|-------------------------------------------|
-| `getWinner()`         | Returns winning `Team`                    |
-| `getLoser()`          | Returns losing `Team`                     |
-| `getHeroFor(Player)`  | Lookup hero used by a specific player     |
+1. **Plan / design review** — check structural compliance with §8 and consistency between plan.md, design.md, UML.
+2. **Boilerplate scaffolding** — generate skeletons for enums, interfaces, CSV header parsing; I rewrite logic myself.
+3. **Edge-case brainstorming** — list tricky inputs for test-cases.md (empty CSV, malformed row, tie-breaking).
+4. **Debugging companion** — paste stack trace + minimal code, ask for hypotheses; I verify before applying.
+5. **Refactor suggestions** — naming, duplication, exception granularity.
 
-**Relationships:**
-- References: `Team` (2×), `Player` (MVP + map keys), `Hero` (map values)
+**Will NOT use AI for:** writing reflection.md, copying full classes without understanding, generating fake test results.
+
+All prompts logged in `ai/prompts.md`; all sessions in `ai/agent-log.md`; honest reflection in `ai/reflection.md`.
 
 ---
 
-## 5. Service Classes — Responsibilities
+## 8. Prompt Strategy
 
-### 5.1 `AuthService`
-- `register(username, password, nickname, role)` → creates `Player` or `Admin`, persists.
-- `login(username, password)` → validates hash, sets session, returns `Person`.
-- `logout(person)` → clears session flag.
-- Holds a `Map<String, Person>` in memory (loaded by `FileService`).
+Prompts follow a **Role + Context + Task + Constraint + Format** template:
 
-### 5.2 `HeroService`
-- CRUD operations on the hero catalogue.
-- `searchByName(keyword)` → returns filtered `List<Hero>`.
-- `filterByClass(HeroClass)` → returns filtered `List<Hero>`.
-- `getTopHeroes(int n)` → sorted by win rate (descending).
+- **Role:** "You are a Java code reviewer for a beginner course project."
+- **Context:** paste relevant section of plan.md / design.md / code.
+- **Task:** one clear ask ("review", "suggest test cases", "explain error").
+- **Constraint:** "Java 17, no external libs, console only, ≤ 50 lines."
+- **Format:** "answer in bullet list" / "show diff" / "table".
 
-### 5.3 `TeamService`
-- `createTeam(name, captain)` → new `Team`, captain joins automatically.
-- `disbandTeam(team)` → remove team, free all members.
-- `addMember(team, player)` / `removeMember(team, player)`.
-- `transferCaptain(team, newCaptain)`.
-
-### 5.4 `MatchService`
-- `recordMatch(team1, team2, result, participants, mvp)` → create `MatchRecord`, update all players' `matchHistory`, `winCount`, `totalGames`.
-- `getPlayerHistory(player)` → returns `List<MatchRecord>`.
-- `getTeamHistory(team)` → returns `List<MatchRecord>`.
-
-### 5.5 `LeaderboardService`
-- `getTopPlayers(int n)` → sort by `rank.ordinal()` desc, then by `winRate` desc.
-- `getTopHeroesByWinRate(int n)` → sort by `Hero.winRate` desc.
-- `getTopTeamsByRank(int n)` → sort by `Team.getAverageRankValue()` desc.
-- Uses `Collections.sort()` with custom `Comparator` implementations.
-
-### 5.6 `FileService`
-- `loadAll()` → reads all 5 CSV files, populates in-memory stores, wires references.
-- `saveAll()` → writes all 5 CSV files from in-memory stores.
-- `loadPlayers()`, `savePlayers()`, etc. — per-type methods.
-- Handles `IOException`, malformed rows, missing files gracefully.
-- Delegates row parsing to each model's `CsvPersistable` implementation.
+**Iteration rules:**
+1. First prompt = small scope (one class / one method).
+2. If output is wrong → reply with the specific error, not "try again".
+3. Never accept code I cannot explain line-by-line.
+4. Log prompt + verdict (accepted / modified / rejected) in `ai/prompts.md`.
 
 ---
 
-## 6. Utility Classes
+## 9. Development Timeline
 
-| Class           | Purpose                                               |
-|-----------------|-------------------------------------------------------|
-| `CsvUtil`       | Shared CSV parsing helpers (escape commas, quotes)    |
-| `PasswordUtil`  | SHA-256 hashing + salt, `matches(plain, hash)` check  |
-| `Validator`     | Input validation: non-empty strings, positive ints, valid enum values |
+10-day plan (≈ 2 h/day):
 
----
+| Day | Milestone                                                              | Deliverable                          |
+|-----|------------------------------------------------------------------------|--------------------------------------|
+| 1   | Finalize plan.md + design.md + uml.png                                 | `docs/` first commit                 |
+| 2   | Enums + interfaces + `Person` / `Player` / `Admin`                     | model layer compiles                 |
+| 3   | `Hero`, `Equipment`, `Team`, `MatchRecord` + unit smoke tests          | all models compile                   |
+| 4   | `CsvUtil`, `FileService`, sample CSV files in `data/`                  | round-trip read/write works          |
+| 5   | `AuthService` + `PasswordUtil` + login/logout CLI                      | login flow demo                      |
+| 6   | `PlayerService`, `HeroService` (search, CRUD)                          | feature 2.1 / 2.3 working            |
+| 7   | `TeamService`, `MatchService` (overview, last-N matches)               | features 2.2 / 2.5 working           |
+| 8   | `LeaderboardService` + equipment stats + tie-breaking                  | features 2.4 / 2.6 working           |
+| 9   | Full CLI menu in `Main`, role-based access, validation polish          | end-to-end manual test               |
+| 10  | Fill test-cases.md, finalize ai/ logs, write reflection.md, submit zip | final submission                     |
 
-## 7. Data Flow Summary
-
-```
-                      +------------------+
-                      |   FileService    |
-                      | (CsvPersistable) |
-                      +--------+---------+
-                               |
-           +-------------------+-------------------+
-           |                   |                   |
-    players.csv          heroes.csv          teams.csv
-    equipment.csv        matches.csv
-                               |
-                      +--------+---------+
-                      |   Main.java      |
-                      |   (CLI Menu)     |
-                      +--------+---------+
-                               |
-         +---------------------+---------------------+
-         |                     |                     |
-   AuthService          HeroService            TeamService
-   MatchService         LeaderboardService
-         |                     |                     |
-   +-----+------+      +------+------+      +------+------+
-   | Person     |      | Hero        |      | Team        |
-   | Player     |      | Equipment   |      | MatchRecord |
-   | Admin      |      +-------------+      +-------------+
-   +------------+
-```
+Buffer: weekend can absorb 1–2 days slip.
 
 ---
 
-## 8. OOP Concepts Checklist
+## 10. Testing Plan
 
-| Concept           | Where                                                       |
-|-------------------|-------------------------------------------------------------|
-| **Abstract class**  | `Person`                                                    |
-| **Inheritance**     | `Player → Person`, `Admin → Person`                         |
-| **Interface**       | `Authenticatable`, `Rankable`, `CsvPersistable`             |
-| **Polymorphism**    | `FileService` works with `CsvPersistable` regardless of type; `Person` reference holds `Player` or `Admin` |
-| **Encapsulation**   | All fields `private`; access via getters/setters             |
-| **Enum**            | `Role`, `HeroClass`, `Rank`, `MatchResult`, `EquipmentType` |
-| **Collections**     | `ArrayList` (heroPool, members, matchHistory), `HashMap` (baseStats, statBonuses, participants), `TreeMap` (leaderboard) |
-| **Comparable/Comparator** | `Rankable extends Comparable`; custom `Comparator` in `LeaderboardService` |
-| **File I/O**        | `FileService` + `CsvUtil`; CSV persistence for all entities  |
-| **Authentication**  | `AuthService` with SHA-256 password hashing                  |
-| **Leaderboard**     | `LeaderboardService` with sorted collections                 |
-| **Exception handling** | `FileService` catches `IOException`; `Validator` throws custom `ValidationException` |
+Testing is **manual + scripted CLI runs**, documented in `docs/test-cases.md`. Each test case has: ID, feature, input, expected output, actual output, pass/fail.
+
+**Categories:**
+
+1. **Happy-path** — one per requirement in §2 (≥ 8 cases).
+2. **Boundary** — empty CSV; 1-member team; player with 0 matches; N larger than history size.
+3. **Invalid input** — non-existent ID/name; malformed CSV row; wrong password; non-numeric where number expected.
+4. **Authorization** — Player attempting Admin-only operation → denied.
+5. **Tie-breaking** — leaderboard with equal win rates; equipment with equal usage.
+6. **Persistence** — add → exit → restart → data still present.
+
+Target: **≥ 20 test cases**, all reproducible from a documented seed dataset in `data/`.
 
 ---
 
-## 9. Class Diagram (text)
+## 11. Risk Analysis
 
-```
-┌──────────────────────┐
-│   <<interface>>      │
-│   Authenticatable    │
-├──────────────────────┤
-│ + login(u,p): bool   │
-│ + logout(): void     │
-│ + isAuth(): bool     │
-└─────────▲────────────┘
-          │ implements
-┌─────────┴──────────┐          ┌──────────────────────┐
-│      Person        │          │   <<interface>>      │
-│     (abstract)     │          │   Rankable           │
-├────────────────────┤          ├──────────────────────┤
-│ - id, username     │          │ + getRankValue(): int │
-│ - hashedPassword   │          │ + getRank(): Rank     │
-│ - nickname         │          │ + setRank(Rank): void │
-│ + getRole() abstract│          └──────────────────────┘
-└────▲──────────▲────┘
-     │          │
-┌────┴────┐ ┌───┴──────┐
-│ Player  │ │  Admin   │
-├─────────┤ ├──────────┤
-│ - rank  │ │ - level  │
-│ - heroPool[]    │ │ - teams[]│
-│ - equip[]       │ │          │
-│ - matchHist[]   │ │          │
-│ - team  │ │          │
-│ - winCount      │ │          │
-└──┬──┬───┘ └──────────┘
-   │  │
-   │  │ owns         ┌────────────┐
-   │  └──────────────► Equipment  │
-   │                 ├────────────┤
-   │  owns           │ - name     │
-   ├─────────────────► Hero       │ - type     │
-   │                 ├────────────┤ - statBonuses
-   │                 │ - name     │ - price    │
-   │  belongs to     │ - class    │ - desc     │
-   └─────────────────► Team       └────────────┘
-                     ├────────────┤
-                     │ - name     │
-                     │ - members[]│
-                     │ - captain  │
-                     │ - rank     │
-                     └─────┬──────┘
-                           │ participates
-              ┌────────────┴────────────┐
-              │    MatchRecord          │
-              ├─────────────────────────┤
-              │ - team1, team2          │
-              │ - result                │
-              │ - participants (Map)    │
-              │ - mvp                   │
-              │ - duration              │
-              └─────────────────────────┘
-```
+| Risk                                          | Likelihood | Impact | Mitigation                                                          |
+|-----------------------------------------------|------------|--------|---------------------------------------------------------------------|
+| CSV parsing breaks on commas inside fields    | M          | H      | Use `;` as internal separator; quote fields containing `,`          |
+| Scope creep (GUI, network, animations)        | M          | H      | Freeze §2 requirements; new ideas → "future work" section           |
+| Over-reliance on AI → cannot explain own code | M          | H      | Rule: never paste code I haven't read; log every accept/reject      |
+| Forgetting tie-breaking rules                 | H          | M      | Write tie-break tests on Day 8 before implementation                |
+| Losing work / no version history              | L          | H      | Daily `git commit`; export `git-history.txt` for `ai/` folder       |
+| Time underestimate on services layer          | M          | M      | Buffer day 10; cut "nice-to-have" CLI polish first                  |
+| Hash/salt bug locks out admin                 | L          | H      | Keep a seed admin account in `data/admins.csv` with known password  |
+| UML drifts from code                          | M          | M      | Regenerate `uml.png` from `uml.puml` on Day 9 after code freeze     |
+
+---
+
+## 12. Final Reflection Placeholder
+
+> To be completed after submission and stored in `ai/reflection.md`. Will answer the 10 questions from §6.4 of the assignment:
+
+1. Which parts of the project did AI help with the most?
+2. Which parts did I do entirely on my own?
+3. Did AI ever give wrong or misleading suggestions? How did I detect them?
+4. How did I verify AI-generated code before using it?
+5. What did I learn about Java by reviewing AI output?
+6. How did my prompts evolve over the project?
+7. What would I do differently next time when collaborating with AI?
+8. Did AI improve my productivity? By how much (rough estimate)?
+9. Did AI affect my understanding — positively or negatively?
+10. What is one concrete example where I rejected AI's suggestion and did it my way?
