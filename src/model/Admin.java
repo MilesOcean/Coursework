@@ -1,30 +1,27 @@
 package model;
 
 import enums.Role;
+import interfaces.CsvPersistable;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * System administrator who manages heroes, players, and teams.
+ * System administrator.
  *
- * Design choices:
- * - Admin DOES NOT own heroes or have a rank — it is purely a management role.
- * - adminLevel indicates seniority (1 = junior, 2 = senior, etc.).
- * - managedTeams tracks which teams this admin oversees.
- * - Ban/unban delegates to Player.setBanned() so the logic stays on Player.
+ * Design decisions (from design.md §2.1, plan.md §4.4, §6):
+ * - managedTeamIds stores Team.id references (Strings), not Team objects.
+ * - Admins are stored in admins.csv (separate from players.csv).
+ * - Admin does NOT implement Rankable — only Players and Teams have ranks.
  */
-public class Admin extends Person {
+public class Admin extends Person implements CsvPersistable {
 
-    private int adminLevel;
-    private List<Team> managedTeams;
+    private List<String> managedTeamIds;   // Team.id references
 
-    public Admin(String id, String username, String salt,
-                 String hashedPassword, String nickname,
-                 int adminLevel) {
-        super(id, username, salt, hashedPassword, nickname);
-        this.adminLevel = adminLevel;
-        this.managedTeams = new ArrayList<>();
+    public Admin(String id, String username, String passwordHash,
+                 String salt, String nickname) {
+        super(id, username, passwordHash, salt, nickname);
+        this.managedTeamIds = new ArrayList<>();
     }
 
     /* ---- role ---- */
@@ -33,44 +30,36 @@ public class Admin extends Person {
         return Role.ADMIN;
     }
 
-    /* ---- player management ---- */
-    /** Disables a player account. The player's data is kept. */
-    public void banPlayer(Player player) {
-        if (player != null) {
-            player.setBanned(true);
+    /* ---- helpers ---- */
+    public void addManagedTeam(String teamId) {
+        if (teamId != null && !managedTeamIds.contains(teamId)) {
+            managedTeamIds.add(teamId);
         }
     }
 
-    /** Re-enables a previously banned player account. */
-    public void unbanPlayer(Player player) {
-        if (player != null) {
-            player.setBanned(false);
-        }
+    public void removeManagedTeam(String teamId) {
+        managedTeamIds.remove(teamId);
     }
 
-    /* ---- team oversight ---- */
-    /** Assigns a team to this admin's supervision list. */
-    public void manageTeam(Team team) {
-        if (team != null && !managedTeams.contains(team)) {
-            managedTeams.add(team);
-        }
-    }
-
-    /** Removes a team from supervision. */
-    public void unmanageTeam(Team team) {
-        managedTeams.remove(team);
+    /* ---- CsvPersistable ---- */
+    @Override
+    public String toCsvRow() {
+        return String.join(",",
+                getId(),
+                getUsername(),
+                getPasswordHash(),
+                getSalt(),
+                getNickname(),
+                String.join(";", managedTeamIds));
     }
 
     /* ---- getters / setters ---- */
-    public int getAdminLevel() { return adminLevel; }
-    public void setAdminLevel(int adminLevel) { this.adminLevel = Math.max(1, adminLevel); }
-
-    public List<Team> getManagedTeams() { return managedTeams; }
-    public void setManagedTeams(List<Team> managedTeams) { this.managedTeams = managedTeams; }
+    public List<String> getManagedTeamIds() { return managedTeamIds; }
+    public void setManagedTeamIds(List<String> managedTeamIds) { this.managedTeamIds = managedTeamIds; }
 
     @Override
     public String toString() {
-        return String.format("Admin[%s] %s | Level %d | Teams: %d",
-                getId(), getNickname(), adminLevel, managedTeams.size());
+        return String.format("Admin[%s] %s | Teams managed: %d",
+                getId(), getNickname(), managedTeamIds.size());
     }
 }

@@ -1,124 +1,121 @@
 package model;
 
 import enums.MatchResult;
+import interfaces.CsvPersistable;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Historical record of a single match between two teams.
  *
- * Design choices:
- * - "result" is always from team1's perspective:
- *     WIN  → team1 won, team2 lost
- *     LOSE → team1 lost, team2 won
- *     DRAW → both tied
- * - "participants" is a Map<Player, Hero> so you can look up which hero
- *   any given player used in this match.
- * - "mvp" is the most valuable player of the match (single reference).
- * - No direct reference to "the winner team" is stored; getWinner() /
- *   getLoser() compute it from result + team1 + team2.
+ * Design decisions (from design.md §2.1, plan.md §4.4, §6):
+ * - All references use String IDs (team1Id, team2Id, mvpPlayerId), not objects.
+ * - heroPicks maps playerId → heroId for lookup of who played what.
+ * - date is a LocalDate (stored as YYYY-MM-DD in CSV).
+ * - durationMinutes is in minutes (not seconds).
+ * - result is always from team1's perspective.
  */
-public class MatchRecord {
+public class MatchRecord implements CsvPersistable {
 
     private String id;
-    private LocalDateTime matchDate;
-    private Team team1;
-    private Team team2;
+    private LocalDate date;
+    private String team1Id;
+    private String team2Id;
     private MatchResult result;                  // relative to team1
-    private int duration;                        // match length in seconds
-    private Player mvp;                          // most valuable player
-    private Map<Player, Hero> participants;      // which hero each player used
+    private Map<String, String> heroPicks;       // playerId → heroId
+    private String mvpPlayerId;
+    private int durationMinutes;
 
-    /**
-     * @param id        UUID assigned by the caller.
-     * @param team1     First team.
-     * @param team2     Second team.
-     * @param result    Outcome from team1's perspective.
-     * @param duration  Match length in seconds (≥ 0).
-     * @param mvp       Most valuable player (can be from either team).
-     */
-    public MatchRecord(String id, Team team1, Team team2,
-                        MatchResult result, int duration, Player mvp) {
+    public MatchRecord(String id, LocalDate date, String team1Id, String team2Id,
+                       MatchResult result, String mvpPlayerId, int durationMinutes) {
         this.id = id;
-        this.matchDate = LocalDateTime.now();
-        this.team1 = team1;
-        this.team2 = team2;
+        this.date = date;
+        this.team1Id = team1Id;
+        this.team2Id = team2Id;
         this.result = result;
-        this.duration = Math.max(0, duration);
-        this.mvp = mvp;
-        this.participants = new HashMap<>();
+        this.mvpPlayerId = mvpPlayerId;
+        this.durationMinutes = Math.max(0, durationMinutes);
+        this.heroPicks = new HashMap<>();
     }
 
-    /* ---- computed helpers ---- */
-
-    /**
-     * @return the winning Team, or null if the match was a draw.
-     */
-    public Team getWinner() {
+    /* ---- derived getters ---- */
+    /** @return the winning team's ID, or null on DRAW. */
+    public String getWinnerId() {
         switch (result) {
-            case WIN:  return team1;
-            case LOSE: return team2;
-            default:   return null;   // DRAW
+            case WIN:  return team1Id;
+            case LOSE: return team2Id;
+            default:   return null;
         }
     }
 
-    /**
-     * @return the losing Team, or null if the match was a draw.
-     */
-    public Team getLoser() {
+    /** @return the losing team's ID, or null on DRAW. */
+    public String getLoserId() {
         switch (result) {
-            case WIN:  return team2;
-            case LOSE: return team1;
-            default:   return null;   // DRAW
+            case WIN:  return team2Id;
+            case LOSE: return team1Id;
+            default:   return null;
         }
     }
 
-    /** Looks up which hero a specific player used in this match. */
-    public Hero getHeroFor(Player player) {
-        return participants.get(player);
+    /* ---- helpers ---- */
+    public void addHeroPick(String playerId, String heroId) {
+        if (playerId != null && heroId != null) {
+            heroPicks.put(playerId, heroId);
+        }
     }
 
-    /** Convenience: records a player-hero pairing for this match. */
-    public void addParticipant(Player player, Hero hero) {
-        if (player != null && hero != null) {
-            participants.put(player, hero);
+    /* ---- CsvPersistable ---- */
+    @Override
+    public String toCsvRow() {
+        // heroPicks formatted as: team1:p1:h1;p2:h2|team2:p3:h3;p4:h4
+        // Simplified: just flatten to playerId:heroId pairs separated by ;
+        StringBuilder picks = new StringBuilder();
+        for (Map.Entry<String, String> e : heroPicks.entrySet()) {
+            if (picks.length() > 0) picks.append(";");
+            picks.append(e.getKey()).append(":").append(e.getValue());
         }
+        return String.join(",",
+                id,
+                date.toString(),
+                team1Id,
+                team2Id,
+                result.name(),
+                mvpPlayerId != null ? mvpPlayerId : "",
+                String.valueOf(durationMinutes),
+                picks.toString());
     }
 
     /* ---- getters / setters ---- */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
 
-    public LocalDateTime getMatchDate() { return matchDate; }
-    public void setMatchDate(LocalDateTime matchDate) { this.matchDate = matchDate; }
+    public LocalDate getDate() { return date; }
+    public void setDate(LocalDate date) { this.date = date; }
 
-    public Team getTeam1() { return team1; }
-    public void setTeam1(Team team1) { this.team1 = team1; }
+    public String getTeam1Id() { return team1Id; }
+    public void setTeam1Id(String team1Id) { this.team1Id = team1Id; }
 
-    public Team getTeam2() { return team2; }
-    public void setTeam2(Team team2) { this.team2 = team2; }
+    public String getTeam2Id() { return team2Id; }
+    public void setTeam2Id(String team2Id) { this.team2Id = team2Id; }
 
     public MatchResult getResult() { return result; }
     public void setResult(MatchResult result) { this.result = result; }
 
-    public int getDuration() { return duration; }
-    public void setDuration(int duration) { this.duration = Math.max(0, duration); }
+    public Map<String, String> getHeroPicks() { return heroPicks; }
+    public void setHeroPicks(Map<String, String> heroPicks) { this.heroPicks = heroPicks; }
 
-    public Player getMvp() { return mvp; }
-    public void setMvp(Player mvp) { this.mvp = mvp; }
+    public String getMvpPlayerId() { return mvpPlayerId; }
+    public void setMvpPlayerId(String mvpPlayerId) { this.mvpPlayerId = mvpPlayerId; }
 
-    public Map<Player, Hero> getParticipants() { return participants; }
-    public void setParticipants(Map<Player, Hero> participants) { this.participants = participants; }
+    public int getDurationMinutes() { return durationMinutes; }
+    public void setDurationMinutes(int durationMinutes) { this.durationMinutes = Math.max(0, durationMinutes); }
 
     @Override
     public String toString() {
-        return String.format("Match[%s] %s vs %s | %s | MVP: %s",
-                getId(),
-                team1 != null ? team1.getName() : "?",
-                team2 != null ? team2.getName() : "?",
-                result,
-                mvp != null ? mvp.getNickname() : "none");
+        return String.format("Match[%s] %s | %s vs %s | %s | MVP: %s | %d min",
+                id, date, team1Id, team2Id, result,
+                mvpPlayerId != null ? mvpPlayerId : "none", durationMinutes);
     }
 }

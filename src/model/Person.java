@@ -1,79 +1,59 @@
 package model;
 
 import enums.Role;
-
-import java.time.LocalDateTime;
+import interfaces.Authenticatable;
 
 /**
- * Abstract base class for all human actors in the system.
+ * Abstract base class for all human actors.
  *
- * Design choices:
- * - "abstract" because a Person should never be instantiated directly —
- *   every real user is either a Player or an Admin.
- * - "authenticated" is a transient session flag. It lives in memory only
- *   (not saved to CSV) and is reset on logout or program exit.
- * - The password salt & hash are stored together so AuthService can verify
- *   credentials without exposing plain-text passwords.
+ * Design decisions (from design.md §2.1, §6):
+ * - passwordHash + salt are stored; AuthService handles verification.
+ * - "authenticated" is a transient in-memory flag — never written to CSV.
+ * - login() is called by AuthService AFTER external credential check.
  */
-public abstract class Person {
+public abstract class Person implements Authenticatable {
 
-    /* ---- fields ---- */
     private String id;
     private String username;
-    private String salt;            // random per-user salt for password hashing
-    private String hashedPassword;  // SHA-256(salt + plainPassword)
+    private String passwordHash;
+    private String salt;
     private String nickname;
-    private LocalDateTime registrationDate;
-    private boolean authenticated;  // session flag, not persisted
 
-    /* ---- constructor ---- */
-    /**
-     * @param id              Unique identifier (usually a UUID generated before calling).
-     * @param username        Login name — must be unique across all users.
-     * @param salt            Per-user salt string.
-     * @param hashedPassword  Already-hashed password string.
-     * @param nickname        Display name shown in the UI.
-     */
-    public Person(String id, String username, String salt,
-                  String hashedPassword, String nickname) {
+    /** Transient session flag — true after AuthService calls login(). */
+    private boolean authenticated;
+
+    public Person(String id, String username, String passwordHash,
+                  String salt, String nickname) {
         this.id = id;
         this.username = username;
+        this.passwordHash = passwordHash;
         this.salt = salt;
-        this.hashedPassword = hashedPassword;
         this.nickname = nickname;
-        this.registrationDate = LocalDateTime.now();
-        this.authenticated = false;      // must log in first
+        this.authenticated = false;
     }
 
     /* ---- abstract ---- */
-    /**
-     * Each subclass must return its Role so the menu system can branch
-     * between Player actions and Admin actions without using instanceof.
-     */
     public abstract Role getRole();
 
-    /* ---- session helpers ---- */
-    /** Called by AuthService after successful credential check. */
-    public void login() {
+    /* ---- Authenticatable implementation ---- */
+    /**
+     * Sets the session flag. AuthService MUST verify the password hash
+     * against the stored salt+hash BEFORE calling this method.
+     */
+    @Override
+    public boolean login(String username, String password) {
         this.authenticated = true;
+        return true;
     }
 
-    /** Clears the session flag. */
+    @Override
     public void logout() {
         this.authenticated = false;
     }
 
+    @Override
     public boolean isAuthenticated() {
         return authenticated;
-    }
-
-    /**
-     * Updates the password hash. Old-password verification is done by
-     * AuthService before calling this method.
-     */
-    public void changePassword(String newSalt, String newHashedPassword) {
-        this.salt = newSalt;
-        this.hashedPassword = newHashedPassword;
     }
 
     /* ---- getters / setters ---- */
@@ -83,13 +63,12 @@ public abstract class Person {
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
 
-    public String getSalt() { return salt; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public String getHashedPassword() { return hashedPassword; }
+    public String getSalt() { return salt; }
+    public void setSalt(String salt) { this.salt = salt; }
 
     public String getNickname() { return nickname; }
     public void setNickname(String nickname) { this.nickname = nickname; }
-
-    public LocalDateTime getRegistrationDate() { return registrationDate; }
-    public void setRegistrationDate(LocalDateTime registrationDate) { this.registrationDate = registrationDate; }
 }

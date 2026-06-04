@@ -136,3 +136,51 @@
   guessing when specs are ambiguous, and (3) a **negative
   constraint** ("Do not invent...") to suppress the AI's natural
   tendency to hallucinate plausible-looking class or method names.
+
+---
+
+## Prompt 6
+- **Date/Time:** 2026-06-04 13:53
+- **AI Tool / Model:** Deepseek-v4-pro
+- **Agent Role:** Refactor Agent
+- **Prompt (verbatim):**
+  > "reconcile existing code with the docs, and update DataInitializer
+  > to match the new model classes"
+- **AI Response Summary:** Re-read `plan.md`, `design.md`, and the
+  current `src/` tree, then performed a two-stage refactor in one
+  pass. Stage 1: produced a divergence list between existing code
+  and the spec documents (e.g. inline SHA-256 in `DataInitializer`
+  instead of delegating to `PasswordUtil`, residual `heroClass`
+  references, drifted field / method signatures vs. `design.md §2`)
+  and applied minimal fixes file-by-file. Stage 2: updated
+  `src/util/DataInitializer.java` so that every entity construction
+  call matches the post-reconcile model — corrected constructor
+  argument lists, renamed fields, removed references to dropped
+  fields, and filled in values for newly introduced ones. Kept the
+  original dataset scale (10 players / 3 teams / 15 heroes /
+  20 equipment / 10 matches) and the unmodifiable-list getters.
+  Reported a per-file diff summary at the end.
+- **My Decision:** Accepted with review
+- **Reason:** Merging the two stages into one prompt is safe here
+  because they share the same goal (pull existing code back in line
+  with `plan.md` / `design.md`) and the second stage is a mechanical
+  consequence of the first — `DataInitializer` hard-codes constructor
+  calls against the model, so it must move together with model
+  changes or the project will not compile in between. Reviewing
+  them in a single pass also avoids a "broken middle commit" where
+  the model is reconciled but `DataInitializer` is not yet patched.
+  I still reviewed every modified file individually before
+  accepting, because refactor edits have higher blast radius than
+  greenfield generation.
+- **Related Commit:** ``
+- **Prompt Strategy:** Compound-instruction prompt with shared
+  context — two related actions ("reconcile" + "update
+  DataInitializer") chained with "and" because they target the same
+  spec anchor set already locked by Prompt 4. The order is
+  deliberate: reconcile first (defines the new model), then
+  DataInitializer (consumes it), which lets the AI execute them
+  sequentially without needing extra clarification. Naming
+  `DataInitializer` explicitly in stage 2 prevents the AI from
+  drifting into unrelated cleanup.
+
+

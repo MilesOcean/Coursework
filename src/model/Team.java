@@ -1,129 +1,89 @@
 package model;
 
 import enums.Rank;
+import interfaces.CsvPersistable;
+import interfaces.Rankable;
 
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A group of up to 5 players who compete together.
+ * A group of players who compete together.
  *
- * Design choices:
- * - "members" is an ArrayList so order is preserved (join order).
- * - Team.rank is computed on the fly from member ranks — not stored in CSV
- *   because it can always be recalculated.
- * - "captain" must be a member of the team. Changing the captain does not
- *   remove them from the members list.
- * - "isFull()" enforces the 5-player limit before addMember().
- * - The constructor automatically adds the captain to the members list.
+ * Design decisions (from design.md §2.1, plan.md §4.4, §6):
+ * - All relationships use String IDs (memberIds, captainId), not object refs.
+ *   This keeps the model independent of the service layer.
+ * - "rank" is a stored field (persisted in CSV), not computed from members.
+ * - getAverageLevel() and getTopPlayer() accept a List<Player> parameter
+ *   because the Team only stores IDs — the caller (TeamService) provides
+ *   the actual Player objects for computation.
  */
-public class Team {
+public class Team implements Rankable, CsvPersistable {
 
     private String id;
     private String name;
-    private List<Player> members;
-    private Player captain;
-    private LocalDate creationDate;
+    private String captainId;           // Player.id
+    private Rank rank;
+    private List<String> memberIds;     // Player.id references
 
-    /**
-     * @param id      UUID assigned by the caller.
-     * @param name    Unique team name.
-     * @param captain Founding captain — automatically joins as a member.
-     */
-    public Team(String id, String name, Player captain) {
+    public Team(String id, String name, String captainId, Rank rank) {
         this.id = id;
         this.name = name;
-        this.members = new ArrayList<>();
-        this.creationDate = LocalDate.now();
-
-        // Captain must be a member.
-        if (captain != null) {
-            this.captain = captain;
-            this.members.add(captain);
+        this.captainId = captainId;
+        this.rank = rank;
+        this.memberIds = new ArrayList<>();
+        // Captain is also a member.
+        if (captainId != null && !captainId.isBlank()) {
+            memberIds.add(captainId);
         }
     }
 
     /* ---- membership ---- */
-    /**
-     * Adds a player to the team.
-     * @return true if added, false if team is full or player is already in.
-     */
-    public boolean addMember(Player player) {
-        if (player == null || isFull() || members.contains(player)) {
+    public boolean addMember(String playerId) {
+        if (playerId == null || isFull() || memberIds.contains(playerId)) {
             return false;
         }
-        members.add(player);
-        player.joinTeam(this);
+        memberIds.add(playerId);
         return true;
     }
 
-    /**
-     * Removes a player from the team.
-     * If the player was captain, the first remaining member becomes captain.
-     * If the last member leaves, captain becomes null.
-     */
-    public boolean removeMember(Player player) {
-        if (player == null || !members.contains(player)) {
+    public boolean removeMember(String playerId) {
+        if (playerId == null || !memberIds.contains(playerId)) {
             return false;
         }
-        members.remove(player);
-        player.leaveTeam();
-
-        // Reassign captain if needed
-        if (player.equals(captain)) {
-            captain = members.isEmpty() ? null : members.get(0);
+        // Cannot remove the captain unless they are the last member.
+        if (playerId.equals(captainId) && memberIds.size() > 1) {
+            return false;   // transfer captaincy first
+        }
+        memberIds.remove(playerId);
+        if (memberIds.isEmpty()) {
+            captainId = null;
+        } else if (playerId.equals(captainId)) {
+            captainId = memberIds.get(0);
         }
         return true;
     }
 
-    /**
-     * Changes the team captain. The new captain must already be a member.
-     * @return true if the change succeeded.
-     */
-    public boolean setCaptain(Player player) {
-        if (player != null && members.contains(player)) {
-            this.captain = player;
+    public boolean setCaptain(String playerId) {
+        if (playerId != null && memberIds.contains(playerId)) {
+            this.captainId = playerId;
             return true;
         }
         return false;
     }
 
-    /* ---- computed values ---- */
-
-    /** @return true if the team has 5 members (max size). */
     public boolean isFull() {
-        return members.size() >= 5;
+        return memberIds.size() >= 5;
     }
+
+    /* ---- computed (require Player data from caller) ---- */
 
     /**
-     * Computes the average rank level of all members, rounded down.
-     * @return integer rank level (0–7), or 0 if the team has no members.
+     * Computes average level of the given members.
+     * @param members Player objects matching this team's memberIds (provided by TeamService).
      */
-    public int getAverageRankValue() {
-        if (members.isEmpty()) return 0;
-        int sum = 0;
-        for (Player p : members) {
-            sum += p.getRankValue();
-        }
-        return sum / members.size();
-    }
-
-    /**
-     * Converts the average rank value back to a Rank enum.
-     * Returns BRONZE if the team is empty.
-     */
-    public Rank getRank() {
-        int avg = getAverageRankValue();
-        for (Rank r : Rank.values()) {
-            if (r.getLevel() == avg) return r;
-        }
-        return Rank.BRONZE;
-    }
-
-    /** Computes the average account level of all members. */
-    public double getAverageLevel() {
-        if (members.isEmpty()) return 0.0;
+    public double getAverageLevel(List<Player> members) {
+        if (members == null || members.isEmpty()) return 0.0;
         int sum = 0;
         for (Player p : members) {
             sum += p.getLevel();
@@ -131,30 +91,51 @@ public class Team {
         return (double) sum / members.size();
     }
 
-    /** @return total matches played by all members combined. */
-    public int getTotalMatches() {
-        int total = 0;
-        for (Player p : members) {
-            total += p.getTotalGames();
-        }
-        return total;
-    }
-
-    /** @return the member with the highest win rate (ties broken by level, then name). */
-    public Player getTopPlayer() {
-        if (members.isEmpty()) return null;
+    /**
+     * Finds the top player among the given members.
+     * Tie-breaking: win rate desc → level desc → nickname asc.
+     * @param members Player objects matching this team's memberIds.
+     * @return the top Player, or null if the list is empty.
+     */
+    public Player getTopPlayer(List<Player> members) {
+        if (members == null || members.isEmpty()) return null;
         Player top = members.get(0);
         for (Player p : members) {
             if (p.getWinRate() > top.getWinRate()
-                    || (p.getWinRate() == top.getWinRate()
-                        && p.getLevel() > top.getLevel())
-                    || (p.getWinRate() == top.getWinRate()
-                        && p.getLevel() == top.getLevel()
-                        && p.getNickname().compareTo(top.getNickname()) < 0)) {
+                    || (p.getWinRate() == top.getWinRate() && p.getLevel() > top.getLevel())
+                    || (p.getWinRate() == top.getWinRate() && p.getLevel() == top.getLevel()
+                        && p.getNickname().compareToIgnoreCase(top.getNickname()) < 0)) {
                 top = p;
             }
         }
         return top;
+    }
+
+    /* ---- Rankable implementation ---- */
+    @Override
+    public int getRankValue() {
+        return rank.getLevel();
+    }
+
+    @Override
+    public Rank getRank() {
+        return rank;
+    }
+
+    @Override
+    public void setRank(Rank rank) {
+        this.rank = rank;
+    }
+
+    /* ---- CsvPersistable ---- */
+    @Override
+    public String toCsvRow() {
+        return String.join(",",
+                id,
+                name,
+                captainId != null ? captainId : "",
+                rank.name(),
+                String.join(";", memberIds));
     }
 
     /* ---- getters / setters ---- */
@@ -164,18 +145,15 @@ public class Team {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    public List<Player> getMembers() { return members; }
-    public void setMembers(List<Player> members) { this.members = members; }
+    public String getCaptainId() { return captainId; }
 
-    public Player getCaptain() { return captain; }
-
-    public LocalDate getCreationDate() { return creationDate; }
-    public void setCreationDate(LocalDate creationDate) { this.creationDate = creationDate; }
+    public List<String> getMemberIds() { return memberIds; }
+    public void setMemberIds(List<String> memberIds) { this.memberIds = memberIds; }
 
     @Override
     public String toString() {
-        return String.format("Team[%s] %s | Members: %d/5 | Rank: %s | Captain: %s",
-                getId(), name, members.size(), getRank(),
-                captain != null ? captain.getNickname() : "none");
+        return String.format("Team[%s] %s | Rank: %s | Members: %d/5 | Captain: %s",
+                id, name, rank, memberIds.size(),
+                captainId != null ? captainId : "none");
     }
 }
