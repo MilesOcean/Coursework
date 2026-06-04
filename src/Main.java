@@ -1,4 +1,5 @@
 import model.*;
+import service.EquipmentService;
 import service.HeroService;
 import service.PlayerService;
 import service.TeamService;
@@ -18,6 +19,7 @@ import java.util.Scanner;
  *   - Player lookup (by ID or name) — plan.md §2.1
  *   - Team overview (list all + roster detail) — plan.md §2.2
  *   - Hero details (search + stats + owners) — plan.md §2.3
+ *   - Equipment statistics (ranked by usage) — plan.md §2.4
  *
  * Future: admin menu, team overview, hero details, leaderboard, etc.
  */
@@ -28,7 +30,8 @@ public class Main {
     /* shared state */
     private static PlayerService playerService;
     private static TeamService   teamService;
-    private static HeroService   heroService;
+    private static HeroService      heroService;
+    private static EquipmentService  equipService;
 
     public static void main(String[] args) {
         System.out.println("Loading data...");
@@ -49,6 +52,7 @@ public class Main {
         teamService = new TeamService(init.getTeams(), init.getPlayers());
         heroService = new HeroService(init.getHeroes(), init.getPlayers(),
                 init.getEquipment());
+        equipService = new EquipmentService(init.getEquipment(), init.getPlayers());
         System.out.println("  Loaded: " + init.getPlayers().size() + " players, "
                 + init.getHeroes().size() + " heroes, "
                 + init.getEquipment().size() + " equipment, "
@@ -64,6 +68,7 @@ public class Main {
             System.out.println("1. Player Lookup");
             System.out.println("2. Team Overview");
             System.out.println("3. Hero Details");
+            System.out.println("4. Equipment Statistics");
             System.out.println("0. Exit");
             System.out.println("============================================");
             System.out.print("Choice > ");
@@ -80,11 +85,14 @@ public class Main {
                 case "3":
                     handleHeroDetails();
                     break;
+                case "4":
+                    handleEquipmentStats();
+                    break;
                 case "0":
                     System.out.println("Goodbye!");
                     return;
                 default:
-                    System.out.println("Invalid option. Please enter 1–3 or 0.");
+                    System.out.println("Invalid option. Please enter 1–4 or 0.");
             }
         }
     }
@@ -274,5 +282,33 @@ public class Main {
 
         // Owners
         System.out.println("  Owned by: " + heroService.formatOwners(h));
+    }
+
+    /* ---- equipment statistics (plan.md §2.4) ---- */
+    private static void handleEquipmentStats() {
+        System.out.println();
+        System.out.println("--- Equipment Usage Ranking ---");
+
+        List<Equipment> ranked = equipService.getRankedEquipment();
+        if (ranked.isEmpty()) {
+            System.out.println("No equipment data available.");
+            return;
+        }
+
+        System.out.printf("%-4s %-12s %-8s %-6s%n", "Rank", "Name", "Type", "Used");
+        System.out.println("────────────────────────────────────");
+        for (int i = 0; i < ranked.size(); i++) {
+            Equipment e = ranked.get(i);
+            int count = equipService.getUsageCount(e.getId());
+            System.out.printf("%-4d %-12s %-8s %-6d%n",
+                    i + 1, e.getName(), e.getType(), count);
+        }
+
+        // Summary line
+        long usedCount = ranked.stream()
+                .filter(e -> equipService.getUsageCount(e.getId()) > 0)
+                .count();
+        System.out.println();
+        System.out.println("Equipment in use: " + usedCount + " / " + ranked.size());
     }
 }
