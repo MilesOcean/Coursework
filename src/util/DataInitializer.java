@@ -24,7 +24,7 @@ import java.util.*;
  * All passwords are "123456" (SHA-256 hashed with a per-user salt).
  *
  * Dataset counts:
- *   Players:   10   (3–4 per team)
+ *   Players:   15   (5 per team)
  *   Teams:      3   (AG超玩会, 武汉eStarPro, 重庆狼队)
  *   Heroes:    15   (3 assassins, 3 mages, 2 marksmen, 3 warriors, 2 tanks, 2 supports)
  *   Equipment: 20   (5 attack, 5 defense, 5 magic, 2 movement, 1 jungle, 2 support)
@@ -276,6 +276,11 @@ public class DataInitializer {
         addPlayer("huahai",   "花海", Rank.GRANDMASTER,  26, 1000, 550);
         addPlayer("wuwei",    "无畏", Rank.PLATINUM,     19,  600, 350);
         addPlayer("tanran",   "坦然", Rank.PLATINUM,     18,  550, 320);
+        addPlayer("laoshuai", "老帅", Rank.DIAMOND,      23,  780, 430);
+        addPlayer("aisi",     "爱思", Rank.PLATINUM,     20,  620, 340);
+        addPlayer("juzi",     "橘子", Rank.DIAMOND,      22,  750, 390);
+        addPlayer("yizheng",  "易峥", Rank.PLATINUM,     19,  580, 310);
+        addPlayer("citong",   "刺痛", Rank.MASTER,       24,  920, 490);
     }
 
     private void addPlayer(String username, String nickname, Rank rank,
@@ -304,6 +309,11 @@ public class DataInitializer {
         giveHeroes("huahai",   "兰陵王", "李白", "后羿", "鲁班七号");
         giveHeroes("wuwei",    "铠", "关羽", "廉颇");
         giveHeroes("tanran",   "蔡文姬", "瑶", "妲己", "安琪拉");
+        giveHeroes("laoshuai", "鲁班七号", "后羿", "亚瑟", "张飞");
+        giveHeroes("aisi",     "安琪拉", "貂蝉", "妲己");
+        giveHeroes("juzi",     "兰陵王", "李白", "关羽", "铠");
+        giveHeroes("yizheng",  "后羿", "瑶", "蔡文姬");
+        giveHeroes("citong",   "韩信", "铠", "廉颇", "关羽");
     }
 
     private void giveHeroes(String username, String... heroNames) {
@@ -312,32 +322,37 @@ public class DataInitializer {
     }
 
     /* ============================================================
-     *  6. TEAMS — 3 teams, 3–4 members each
+     *  6. TEAMS — 3 teams, 5 members each
      *     Constructor: (id, name, captainId, rank)
      * ============================================================ */
     private void createTeams() {
-        // AG超玩会 — 3 members, captain = menglei
+        // AG超玩会 — 5 members, captain = menglei
         Team ag = new Team(UUID.randomUUID().toString(), "AG超玩会",
                 pid("menglei"), Rank.LEGEND);
         ag.addMember(pid("yinuo"));
         ag.addMember(pid("jiucheng"));
+        ag.addMember(pid("laoshuai"));
+        ag.addMember(pid("aisi"));
         teams.add(ag);
         teamId.put("AG超玩会", ag.getId());
 
-        // 武汉eStarPro — 3 members, captain = huahai
+        // 武汉eStarPro — 5 members, captain = huahai
         Team es = new Team(UUID.randomUUID().toString(), "武汉eStarPro",
                 pid("huahai"), Rank.GRANDMASTER);
         es.addMember(pid("tanran"));
         es.addMember(pid("maoshen"));
+        es.addMember(pid("juzi"));
+        es.addMember(pid("yizheng"));
         teams.add(es);
         teamId.put("武汉eStarPro", es.getId());
 
-        // 重庆狼队 — 4 members, captain = feiniu
+        // 重庆狼队 — 5 members, captain = feiniu
         Team wolves = new Team(UUID.randomUUID().toString(), "重庆狼队",
                 pid("feiniu"), Rank.GRANDMASTER);
         wolves.addMember(pid("wuwei"));
         wolves.addMember(pid("qingqing"));
         wolves.addMember(pid("nuanyang"));
+        wolves.addMember(pid("citong"));
         teams.add(wolves);
         teamId.put("重庆狼队", wolves.getId());
     }
@@ -358,6 +373,13 @@ public class DataInitializer {
         playerMap.get("wuwei")   .setTeamId(tid("重庆狼队"));
         playerMap.get("qingqing").setTeamId(tid("重庆狼队"));
         playerMap.get("nuanyang").setTeamId(tid("重庆狼队"));
+        playerMap.get("citong")  .setTeamId(tid("重庆狼队"));
+
+        playerMap.get("laoshuai").setTeamId(tid("AG超玩会"));
+        playerMap.get("aisi")    .setTeamId(tid("AG超玩会"));
+
+        playerMap.get("juzi")    .setTeamId(tid("武汉eStarPro"));
+        playerMap.get("yizheng") .setTeamId(tid("武汉eStarPro"));
     }
 
     /* ============================================================
@@ -411,6 +433,30 @@ public class DataInitializer {
                 eid("近卫荣耀"), eid("冷静之靴"));
         loadout("tanran", "瑶",
                 eid("近卫荣耀"), eid("奔狼纹章"));
+
+        // laoshuai: 鲁班七号 deck
+        loadout("laoshuai", "鲁班七号",
+                eid("无尽战刃"), eid("破晓"), eid("急速战靴"));
+
+        // aisi: 安琪拉 deck
+        loadout("aisi", "安琪拉",
+                eid("回响之杖"), eid("博学者之怒"), eid("冷静之靴"));
+
+        // juzi: 兰陵王 + 关羽 decks
+        loadout("juzi", "兰陵王",
+                eid("暗影战斧"), eid("破军"), eid("急速战靴"));
+        loadout("juzi", "关羽",
+                eid("暗影战斧"), eid("不祥征兆"), eid("极寒风暴"));
+
+        // yizheng: 后羿 deck
+        loadout("yizheng", "后羿",
+                eid("无尽战刃"), eid("破晓"), eid("急速战靴"));
+
+        // citong: 韩信 + 铠 decks
+        loadout("citong", "韩信",
+                eid("无尽战刃"), eid("暗影战斧"), eid("追击刀锋"));
+        loadout("citong", "铠",
+                eid("暗影战斧"), eid("宗师之力"), eid("不祥征兆"));
     }
 
     private void loadout(String username, String heroName, String... equipIds) {

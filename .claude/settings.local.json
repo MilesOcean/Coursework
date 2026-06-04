@@ -4,7 +4,8 @@
       "Bash(javac -d out --source-path src src/enums/*.java src/model/*.java)",
       "Bash(javac -d out --source-path src src/service/PlayerService.java)",
       "Bash(java -Dfile.encoding=UTF-8 -cp out Main)",
-      "Bash(javac -d out --source-path src src/Main.java)"
+      "Bash(javac -d out --source-path src src/Main.java)",
+      "Bash(printf 'admin\\\\nadmin\\\\n1\\\\nTestPlayer\\\\n0\\\\n8\\\\n')"
     ]
   }
 }

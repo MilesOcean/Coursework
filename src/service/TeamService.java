@@ -50,6 +50,49 @@ public class TeamService {
         return Collections.unmodifiableList(teams);
     }
 
+    /** Adds a team to the internal list. */
+    public void addTeam(Team t) {
+        if (t != null) teams.add(t);
+    }
+
+    /**
+     * Removes a team by ID. Does NOT delete the players — they become team-less.
+     * @return true if found and removed.
+     */
+    public boolean deleteTeam(String teamId) {
+        if (teamId == null) return false;
+        Optional<Team> opt = findById(teamId);
+        if (opt.isEmpty()) return false;
+        // Clear teamId from all members so they don't point to a deleted team
+        for (String pid : opt.get().getMemberIds()) {
+            Player p = playerMap.get(pid);
+            if (p != null) p.setTeamId(null);
+        }
+        teams.remove(opt.get());
+        return true;
+    }
+
+    /** Adds a player to a team's member list. */
+    public boolean addMember(String teamId, String playerId) {
+        Optional<Team> opt = findById(teamId);
+        if (opt.isEmpty()) return false;
+        Player p = playerMap.get(playerId);
+        if (p == null) return false;
+        opt.get().addMember(playerId);
+        p.setTeamId(teamId);
+        return true;
+    }
+
+    /** Removes a player from a team's member list. */
+    public boolean removeMember(String teamId, String playerId) {
+        Optional<Team> opt = findById(teamId);
+        if (opt.isEmpty()) return false;
+        opt.get().removeMember(playerId);
+        Player p = playerMap.get(playerId);
+        if (p != null) p.setTeamId(null);
+        return true;
+    }
+
     /* ---- member resolution ---- */
 
     /** Resolves memberIds to Player objects. */

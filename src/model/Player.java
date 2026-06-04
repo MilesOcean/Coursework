@@ -85,6 +85,11 @@ public class Player extends Person implements Rankable, CsvPersistable {
         }
     }
 
+    /** Removes a hero from the equippedItems map (e.g. when hero is deleted). */
+    public void removeEquippedHero(String heroId) {
+        equippedItems.remove(heroId);
+    }
+
     /* ---- CsvPersistable ---- */
     @Override
     public String toCsvRow() {

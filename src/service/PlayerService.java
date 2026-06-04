@@ -80,6 +80,29 @@ public class PlayerService {
         return false;
     }
 
+    /** Adds a player to the internal list. */
+    public void addPlayer(Player p) {
+        if (p != null) players.add(p);
+    }
+
+    /**
+     * Removes a player by ID. Also removes the player from their team's member list.
+     * @return true if the player was found and removed.
+     */
+    public boolean deletePlayer(String playerId) {
+        if (playerId == null) return false;
+        Optional<Player> opt = findById(playerId);
+        if (opt.isEmpty()) return false;
+        Player p = opt.get();
+        // Remove from team
+        if (p.getTeamId() != null) {
+            Team t = teamMap.get(p.getTeamId());
+            if (t != null) t.removeMember(playerId);
+        }
+        players.remove(p);
+        return true;
+    }
+
     /* ---- ID → name resolution (for display) ---- */
 
     /** @return team name, or "No Team" if teamId is null/unknown. */

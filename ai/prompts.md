@@ -745,4 +745,27 @@ Rules:
   commit stays focused on the High/Medium severity scope.
 
 ---
+## Prompt 18
+- **Date/Time:** 2026-06-04 20:22
+- **AI Tool / Model:** Claude Code / Deepseek-v4-pro
+- **Agent Role:** Review Agent
+- **Prompt (verbatim):**
+  > "You are my AI Review Agent.
+  >
+  > Please read the requirement document at:
+  > C:\Users\35107\Desktop\requirement.pdf
+  >
+  > Then review my current Java project and check whether it satisfies all coursework requirements.
+  >
+  > Tasks:
+  > 1. Extract the key requirements from the PDF.
+  > 2. Compare each requirement with my current project files.
+  > 3. Identify which requirements are satisfied, partially satisfied, or missing.
+  > 4. Point out any risks related to Git history, prompts.md, documentation, testing, UML/design, OOP structure, file I/O, authentication, and reflection.
+  > 5. Do not modify any files yet.
+  > 6. Output a clear checklist with pass/fail status and recommended fixes."
+- **AI Response Summary:** Reviewed the project against the coursework PDF and produced a checklist of satisfied, partially satisfied, and missing requirements, including risks in Git history, documentation, testing, design/UML, OOP structure, file I/O, authentication, and reflection.
+- **My Decision:** Accepted
+- **Reason:** The review helped verify compliance before final submission and identified remaining risks without changing project files.
+- **Related Commit:** 
 

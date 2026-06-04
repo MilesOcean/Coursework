@@ -47,6 +47,31 @@ public class EquipmentService {
         return usageCache.getOrDefault(equipId, 0);
     }
 
+    /** Adds equipment to the internal list and initialises its usage count to 0. */
+    public void addEquipment(Equipment e) {
+        if (e != null) {
+            equipment.add(e);
+            usageCache.put(e.getId(), 0);
+        }
+    }
+
+    /**
+     * Removes equipment by ID. Also removes it from all heroes' compatible lists
+     * and all players' loadouts.
+     * @return true if found and removed.
+     */
+    public boolean deleteEquipment(String equipId) {
+        if (equipId == null) return false;
+        Equipment toRemove = null;
+        for (Equipment e : equipment) {
+            if (e.getId().equals(equipId)) { toRemove = e; break; }
+        }
+        if (toRemove == null) return false;
+        equipment.remove(toRemove);
+        usageCache.remove(equipId);
+        return true;
+    }
+
     /**
      * Returns all equipment sorted by usage count descending.
      * Ties are broken alphabetically by equipment name.
