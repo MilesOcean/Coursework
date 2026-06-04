@@ -8,10 +8,10 @@ import java.util.*;
 
 /**
  * Entry point — console-based menu for the Honor of Kings system.
- *
+
  * Architecture (from design.md §4):
  *   Main (CLI) → Service layer → Model layer
- *
+
  * Features:
  *   - Login with 3-attempt limit, role-based menus
  *   - Admin: full CRUD access (player, team, hero, equipment, match, leaderboard)
@@ -125,7 +125,7 @@ public class Main {
                 } else {
                     runPlayerMenu();
                 }
-                // logout returns here — loop back to login
+                // logout returns here — loop back to log in
             } else {
                 System.out.println("Too many failed attempts. Exiting.");
                 return;
