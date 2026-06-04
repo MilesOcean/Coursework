@@ -163,7 +163,7 @@ All "Actual output" entries in `docs/test-cases.md` were produced by real CLI ru
 
 These are limitations the author is aware of and chose not to fix within the coursework scope. Each is documented honestly to support the reflection requirement in §6.4 of the specification.
 
-1. **Admin "Data Management" supports add and delete operations** for all five entity types (players, heroes, equipment, teams, matches). Edit/update of individual fields is not yet implemented; records must be deleted and re-created to change values.
+1. **Admin "Data Management" supports add, delete, and edit operations** for all five entity types (players, heroes, equipment, teams, matches).
 
 2. **CSV write path is not symmetric with the new parser.** The read path correctly handles double-quoted fields containing commas (TC-15 PASS). The write path concatenates fields and then re-splits on `,`, so a field containing a literal comma would not round-trip cleanly. This is latent rather than live because no seed field contains a comma and no user-facing input path admits one (nickname editing is the only writable field and is validated).
 

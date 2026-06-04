@@ -64,7 +64,7 @@
 - **Reason:** Class names, packages, enums, and interfaces all matched
   the revised plan.md with zero drift; the UML source rendered cleanly
   on the first try.
-- **Related Commit:** 7e50ac0
+- **Related Commit:** 59de177
 - **Prompt Strategy:** Context-reuse prompt — kept the request short 
   to force the AI to ground both artifacts in the
   already-approved plan.md rather than invent new structure, and asked
@@ -94,7 +94,7 @@
   and the naming makes demo output look authentic. The only issue is
   that hashing is inlined instead of delegating to `PasswordUtil`,
   which I will refactor manually rather than re-prompt for.
-- **Related Commit:** 3d8796e
+- **Related Commit:** fd3aacb
 - **Prompt Strategy:** Constraint-first prompt — stated minimum counts
   up front so the AI could not under-deliver, gave a style hint
   ("Honor of Kings style, but simple") to prevent over-engineering,
@@ -127,7 +127,7 @@
   documentation into **active constraints**, which is what the
   assignment expects — the AI follows the design, it does not
   redesign.
-- **Related Commit:** `d7f3dbf`
+- **Related Commit:** `4ae8915`
 - **Prompt Strategy:** Spec-anchoring prompt — sets a long-lived
   rule for the rest of the session rather than a one-off task.
   Three reinforcement techniques are combined in one prompt:
@@ -172,7 +172,7 @@
   I still reviewed every modified file individually before
   accepting, because refactor edits have higher blast radius than
   greenfield generation.
-- **Related Commit:** `a5f76fe`
+- **Related Commit:** `c3b2701`
 - **Prompt Strategy:** Compound-instruction prompt with shared
   context — two related actions ("reconcile" + "update
   DataInitializer") chained with "and" because they target the same
@@ -208,7 +208,7 @@
   service layer used as designed. Manually tested valid ID, valid
   nickname, unknown nickname, and empty input — all four behaved
   correctly.
-- **Related Commit:** `240a5de`
+- **Related Commit:** `fcde512`
 - **Prompt Strategy:** Scope-locked template ("only ..." + "Do
   not modify unrelated classes") to fence the AI into the CLI
   layer; named the six output fields explicitly so the AI had a
@@ -241,7 +241,7 @@
   model API slightly but is a pure read-only helper consistent
   with design.md §2. Manually tested row number, team name,
   team ID, and empty input — all four behaved correctly.
-- **Related Commit:** `9a16c20`
+- **Related Commit:** `ff80e29`
 - **Prompt Strategy:** Reused the same scope-locked template as
   Prompt 6 to keep menu features uniform; separated "list" and
   "detail" requirements so the AI built two flows instead of
@@ -273,7 +273,7 @@
   service layer reused as designed. Manually tested valid ID,
   valid name (mixed case), unknown name, and empty input —
   all four behaved correctly.
-- **Related Commit:** `20f770c`
+- **Related Commit:** `13db5d3`
 - **Prompt Strategy:** Same scope-locked template as Prompt 6/7
   ("only ..." + "Do not modify unrelated classes"), reused
   deliberately to keep all three menu features added as clean
@@ -309,7 +309,7 @@
   correctly by only implementing the empty-list branch.
   Manually verified with a populated dataset (ranking + tie-
   break) and an empty equipment list — both behaved correctly.
-- **Related Commit:** ``
+- **Related Commit:** `9da26e7`
 - **Prompt Strategy:** Same scope-locked template as Prompt
   7/8/9; left the "invalid input" clause in deliberately even
   though no input is read, to see whether the AI would
@@ -346,7 +346,7 @@
   existing model data and improve readability. Manually
   tested unfiltered list, valid team filter, unknown team
   name, and empty input — all four behaved correctly.
-- **Related Commit:** ``
+- **Related Commit:** `7f719d9`
 - **Prompt Strategy:** Same scope-locked template as Prompt
   6–9; the filter clause was kept short ("by a chosen team")
   to let the AI decide between ID-based and name-based input,
@@ -386,7 +386,7 @@
   dimensions, the <10-players branch (only 10 exist, so cap
   was trivially exercised), and invalid sub-menu input — all
   behaved correctly.
-- **Related Commit:** ``
+- **Related Commit:** `7f719d9`
 - **Prompt Strategy:** Deliberately diverged from Prompt 9
   (fixed sort, no input) by making the sort key user-selectable
   and capping output, so the two ranking-style features produce
@@ -455,7 +455,7 @@
   state. Verified compile, manually tested login with both
   Admin and Player accounts, wrong password, unknown username,
   and null inputs.
-- **Related Commit:** `d9f4901`
+- **Related Commit:** `8648043`
 - **Prompt Strategy:** Used an explicit **Context block** of
   "already exists, do not recreate" items (5 lines) — this
   pre-empted the kind of redundant-rebuild AI sometimes does
@@ -517,7 +517,7 @@
   could not see any option targeting another player's id.
   Three wrong passwords → program exited.
 
-- **Related Commit:** `acd0a19`
+- **Related Commit:** `9f2a124`
 
 
 ---
@@ -565,7 +565,7 @@ Do not use external libraries.If it has already been implemented,skip it directl
   confirm round-trip (save → kill → reload → save again
   produces identical files).
 
-- **Related Commit:** `bf4da48`
+- **Related Commit:** `eff2bf5` (re-added after rebase in [Fix])
 
 ---
 ---
@@ -732,7 +732,7 @@ Rules:
   - All existing menu flows (login, team view, match,
     leaderboard, file save/load round-trip) still work.
 
-- **Related Commit:** `81b2d2d` 
+- **Related Commit:** `c26c2a5` 
 
 - **Suggestions rejected from review (deferred to
   reflection.md):** #5 atomic write, #8 ranking tie
@@ -747,7 +747,7 @@ Rules:
 ---
 ## Prompt 18
 - **Date/Time:** 2026-06-04 20:22
-- **AI Tool / Model:** Claude Code / Deepseek-v4-pro
+- **AI Tool / Model:** Deepseek-v4-pro
 - **Agent Role:** Review Agent
 - **Prompt (verbatim):**
   > "You are my AI Review Agent.
@@ -767,5 +767,33 @@ Rules:
 - **AI Response Summary:** Reviewed the project against the coursework PDF and produced a checklist of satisfied, partially satisfied, and missing requirements, including risks in Git history, documentation, testing, design/UML, OOP structure, file I/O, authentication, and reflection.
 - **My Decision:** Accepted
 - **Reason:** The review helped verify compliance before final submission and identified remaining risks without changing project files.
-- **Related Commit:** 
+- **Related Commit:** `e9c5154`
+---
+## Prompt 19
+- **Date/Time:** 2026-06-04 20:45
+- **AI Tool / Model:** Deepseek-v4-pro
+- **Agent Role:** Implementation and Testing Agent
+- **Prompt (verbatim):**
+  > "You are my AI Implementation and Testing Agent.
+  >
+  > Please fix only the issues identified in the previous requirement compliance review.
+  >
+  > Requirements:
+  > 1. Make the minimum necessary code or documentation changes.
+  > 2. Preserve the existing architecture, file names, class names, and coding style unless a change is required.
+  > 3. Do not rewrite Git history.
+  > 4. Do not remove existing features.
+  > 5. Compile the project after changes.
+  > 6. Test the main flows: login/authentication, RBAC permissions, menu navigation, CSV persistence, leaderboard, match history, search/lookups, and invalid input handling.
+  > 7. Fix any errors found during testing.
+  > 8. Provide a concise summary of:
+       >    - files changed
+  >    - issues fixed
+  >    - tests performed
+  >    - remaining limitations, if any"
+- **AI Response Summary:** The AI fixed the issues identified during the requirement compliance review, compiled the project, tested major program flows, and summarized the changes and remaining limitations.
+- **My Decision:** Accepted
+- **Reason:** The changes addressed the compliance issues found in the previous review and verified the program through compilation and functional testing.
+- **Related Commit:** `dc07586`
+
 

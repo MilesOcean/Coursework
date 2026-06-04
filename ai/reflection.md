@@ -72,7 +72,7 @@ the agent had initially predicted as PASS.
 
 ## 5. Known Limitations (carried into submission)
 
-1. **Admin CRUD operations are now fully implemented** (TC-14). The Admin menu includes a "Data Management" submenu with add and delete operations for all five entity types (players, heroes, equipment, teams, matches), with cascade cleanup and confirmation dialogs. Edit/update of individual fields is not yet implemented; records must be deleted and re-created to change values.
+1. **Admin CRUD operations are fully implemented** (TC-14). The Admin menu includes a "Data Management" submenu with add, delete, and edit operations for all five entity types (players, heroes, equipment, teams, matches), with cascade cleanup and confirmation dialogs.
 
 2. **`CsvUtil.writeCsv()` is asymmetric with `parseCsvLine()`** (TC-15
    note). The read path now honours double-quoted commas; the write
@@ -113,3 +113,100 @@ they would have without AI, because they require judgement the tool
 cannot supply. Treating the AI as a fast junior pair-programmer
 rather than as an autonomous developer is what kept the project
 defendable.
+
+## 8. Answers to Required Reflection Questions (§6.4)
+
+The 10 questions from §6.4 are answered below (some are cross-
+referenced to earlier sections to avoid repetition).
+
+### Q1 — Which AI tools or models did you use?
+Claude Code CLI with a DeepSeek V4 Pro backend (see §1).
+
+### Q2 — Which prompt was the most useful? Why?
+Prompt 5 (spec-anchoring) was the most useful. Telling the
+Implementation Agent to re-read plan.md + design.md + uml.png before
+every code generation, and to stop on conflict rather than guess,
+eliminated naming drift entirely (see §2).
+
+### Q3 — Which AI-generated suggestion was wrong, incomplete, or misleading?
+Three categories: the Reviewer Agent over-recommended abstractions
+(R7–R10), the Implementation Agent inlined cryptography instead of
+delegating to PasswordHasher, and no agent volunteered edge cases
+like the Scanner EOF crash or CSV write-side asymmetry (see §3).
+
+### Q4 — How did you check whether AI-generated code was correct?
+I used four methods: (a) spec-anchoring — every implementation was
+checked against plan.md + design.md requirements; (b) manual CLI
+execution — I ran every feature myself and compared output against
+expected behaviour; (c) separate-agent review — the Reviewer Agent
+was a fresh session that had not seen the implementation prompts;
+(d) code reading — I read every generated class line-by-line before
+committing (see §2 for the Tester-as-evidence-collector approach).
+
+### Q5 — What bugs did you fix yourself instead of asking AI to fix?
+
+I fixed the following bugs manually, without re-prompting the AI:
+
+1. **Password hashing inlined in DataInitializer.** The Implementation
+   Agent hand-rolled SHA-256 + salt directly inside `DataInitializer`
+   instead of calling the existing `PasswordHasher.hash()`. I
+   refactored this myself — a 6-line change that would have risked a
+   60-line rewrite if I had sent it back to the agent (see §3).
+
+2. **Reviewer fixes R1 and R2 applied manually.** The `Collections.
+   unmodifiableList/Map` wrapping in `Player.getHeroPool()` and
+   `getEquippedItems()` (R1), and the `new ArrayList<>(source)`
+   defensive copies in all 4 service constructors (R2), were applied
+   by me directly rather than via the Implementation Agent, because
+   they required careful judgement about which collection methods to
+   wrap and where.
+
+3. **CSV write path asymmetry with read path (TC-15 note).** I
+   discovered during code reading that `CsvUtil.writeCsv()` splits
+   `toCsvRow()` output on raw commas, which cannot distinguish field-
+   internal commas from delimiters. I documented this as a known
+   limitation rather than asking the agent to fix it, because the
+   agent's likely response (a full streaming CSV writer) would have
+   been over-engineered for the actual risk.
+
+4. **Scanner EOF unguarded (TC-19).** I found this edge case myself by
+   reading `Main.java` line-by-line. No agent flagged it. I chose to
+   document it as a known limitation rather than implementing a fix,
+   to be honest about the trade-off.
+
+### Q6 — What Java concept did you understand better after using AI?
+
+**Defensive copying and collection immutability.** When the Reviewer
+Agent flagged R1 and R2, I initially thought "the getter returns a
+reference, so what?" But reading the agent's explanation and then
+writing the TC-16 and TC-17 regression tests made me understand the
+real risk: a caller can call `player.getHeroPool().clear()` and
+silently corrupt the model's internal state. I now understand why
+`Collections.unmodifiableList()` and copy-constructors in service
+layers are standard practice — they are not just boilerplate, they
+are contracts that prevent one layer from breaking another.
+
+### Q7 — What Java concept are you still unsure about?
+
+**Generic type design for repository patterns.** The Reviewer Agent
+suggested extracting a generic `Repository<T>` interface (R7,
+rejected). I understand the syntax of generics, but I am not confident
+I could design a clean generic repository that handles the different
+query needs of Player, Hero, Equipment, Team, and MatchRecord without
+becoming either too abstract to be useful or too specific to be
+reusable. I chose to keep 4 separate service classes because I could
+explain each one, but I recognise this is a gap in my understanding
+that I want to fill in a future project.
+
+### Q8 — Did AI make the project easier, harder, or both? Explain.
+Both (see §7). Easier for boilerplate; harder for the parts requiring
+judgement, because reviewing AI output takes as much focus as writing
+code from scratch.
+
+### Q9 — Which parts of the final project were mainly written by you?
+See the table in §4. Plan & scope, triage, test execution, Main CLI
+wiring (retry counter, role branching), and all commit messages.
+
+### Q10 — Which parts were mainly generated or heavily assisted by AI?
+See the table in §4. Model classes, DataInitializer skeleton, service
+first drafts, and documentation prose (all edited for accuracy).

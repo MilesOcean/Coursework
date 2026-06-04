@@ -16,4 +16,4 @@
 * e13c546 [[AI-Implementation] implement core model classes]  (2026-06-04)
 * 194e105 [[Human] Analyzed and revised plan.md,write promptes]  (2026-06-04)
 * d437434 [[AI-Architect] generate initial plan draft with Claude Code]  (2026-06-03)
-* 1b6e7ee [[Human] create initial Java project structure]  (2026-06-03)
+* 1b6e7ee [[Human] create initial Java project structure]  (2026-06-03
