@@ -1,6 +1,8 @@
 import model.*;
 import service.EquipmentService;
 import service.HeroService;
+import service.LeaderboardService;
+import service.MatchService;
 import service.PlayerService;
 import service.TeamService;
 import util.DataInitializer;
@@ -20,6 +22,8 @@ import java.util.Scanner;
  *   - Team overview (list all + roster detail) — plan.md §2.2
  *   - Hero details (search + stats + owners) — plan.md §2.3
  *   - Equipment statistics (ranked by usage) — plan.md §2.4
+ *   - Match history (list + filter by team) — plan.md §2.5
+ *   - Leaderboard (top 10 by chosen dimension) — plan.md §2.6
  *
  * Future: admin menu, team overview, hero details, leaderboard, etc.
  */
@@ -32,6 +36,8 @@ public class Main {
     private static TeamService   teamService;
     private static HeroService      heroService;
     private static EquipmentService  equipService;
+    private static MatchService        matchService;
+    private static LeaderboardService   leaderboardService;
 
     public static void main(String[] args) {
         System.out.println("Loading data...");
@@ -53,6 +59,9 @@ public class Main {
         heroService = new HeroService(init.getHeroes(), init.getPlayers(),
                 init.getEquipment());
         equipService = new EquipmentService(init.getEquipment(), init.getPlayers());
+        matchService = new MatchService(init.getMatches(), init.getTeams(),
+                init.getPlayers(), init.getHeroes());
+        leaderboardService = new LeaderboardService(init.getPlayers(), init.getTeams());
         System.out.println("  Loaded: " + init.getPlayers().size() + " players, "
                 + init.getHeroes().size() + " heroes, "
                 + init.getEquipment().size() + " equipment, "
@@ -69,6 +78,8 @@ public class Main {
             System.out.println("2. Team Overview");
             System.out.println("3. Hero Details");
             System.out.println("4. Equipment Statistics");
+            System.out.println("5. Match History");
+            System.out.println("6. Leaderboard");
             System.out.println("0. Exit");
             System.out.println("============================================");
             System.out.print("Choice > ");
@@ -88,11 +99,17 @@ public class Main {
                 case "4":
                     handleEquipmentStats();
                     break;
+                case "5":
+                    handleMatchHistory();
+                    break;
+                case "6":
+                    handleLeaderboard();
+                    break;
                 case "0":
                     System.out.println("Goodbye!");
                     return;
                 default:
-                    System.out.println("Invalid option. Please enter 1–4 or 0.");
+                    System.out.println("Invalid option. Please enter 1–6 or 0.");
             }
         }
     }
@@ -310,5 +327,124 @@ public class Main {
                 .count();
         System.out.println();
         System.out.println("Equipment in use: " + usedCount + " / " + ranked.size());
+    }
+
+    /* ---- match history (plan.md §2.5) ---- */
+    private static void handleMatchHistory() {
+        System.out.println();
+
+        // Step 1 — show all matches
+        List<MatchRecord> allMatches = matchService.listAll();
+        displayMatchTable(allMatches);
+
+        // Step 2 — filter prompt
+        System.out.print("Enter team name to filter (Enter to return, 0 to cancel): ");
+        String input = scanner.nextLine().trim();
+        if (input.isEmpty()) return;
+        if (input.equals("0")) return;
+
+        // Find the team
+        Optional<Team> team = matchService.findTeam(input);
+        if (team.isEmpty()) {
+            System.out.println("No team found with name: \"" + input + "\"");
+            return;
+        }
+
+        // Filter and display
+        Team t = team.get();
+        List<MatchRecord> filtered = matchService.getByTeamId(t.getId());
+        if (filtered.isEmpty()) {
+            System.out.println("No matches recorded for team: " + t.getName());
+            return;
+        }
+
+        System.out.println();
+        System.out.println("--- Matches for " + t.getName() + " ---");
+        displayMatchTable(filtered);
+    }
+
+    private static void displayMatchTable(List<MatchRecord> matches) {
+        if (matches.isEmpty()) {
+            System.out.println("No matches to display.");
+            return;
+        }
+
+        System.out.printf("%-12s %-22s %-22s %-6s %-10s%n",
+                "Date", "Teams", "Result", "MVP", "Duration");
+        System.out.println("────────────────────────────────────────────────────────────────────────────");
+
+        for (MatchRecord m : matches) {
+            String teams = matchService.getTeamName(m.getTeam1Id()) + " vs "
+                    + matchService.getTeamName(m.getTeam2Id());
+            System.out.printf("%-12s %-22s %-22s %-6s %-10s%n",
+                    m.getDate(),
+                    teams,
+                    matchService.formatResult(m),
+                    matchService.getMvpName(m),
+                    m.getDurationMinutes() + " min");
+            // Hero picks on a sub-line
+            System.out.println("  Picks: " + matchService.formatHeroPicks(m));
+        }
+
+        System.out.println();
+        System.out.println("Total: " + matches.size() + " match(es)");
+    }
+
+    /* ---- leaderboard (plan.md §2.6) ---- */
+    private static void handleLeaderboard() {
+        System.out.println();
+        System.out.println("--- Player Leaderboard ---");
+        System.out.println("Rank by:");
+        System.out.println("  1. Win Rate");
+        System.out.println("  2. Total Wins");
+        System.out.println("  3. Player Level");
+        System.out.print("Choice (0 to cancel): ");
+        String input = scanner.nextLine().trim();
+
+        if (input.equals("0")) return;
+
+        List<Player> top;
+        String dimension;
+        switch (input) {
+            case "1":
+                top = leaderboardService.topByWinRate(10);
+                dimension = "Win Rate";
+                break;
+            case "2":
+                top = leaderboardService.topByWins(10);
+                dimension = "Total Wins";
+                break;
+            case "3":
+                top = leaderboardService.topByLevel(10);
+                dimension = "Level";
+                break;
+            default:
+                System.out.println("Invalid choice. Please enter 1, 2, or 3.");
+                return;
+        }
+
+        if (top.isEmpty()) {
+            System.out.println("No player data available.");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Top " + top.size() + " Players by " + dimension);
+        System.out.printf("%-4s %-10s %-14s %-12s%n",
+                "Rank", "Name", "Team", dimension);
+        System.out.println("────────────────────────────────────────");
+
+        for (int i = 0; i < top.size(); i++) {
+            Player p = top.get(i);
+            String teamName = leaderboardService.getTeamName(p.getTeamId());
+            String value = "";
+            switch (input) {
+                case "1": value = String.format("%.1f%%", p.getWinRate()); break;
+                case "2": value = String.valueOf(p.getWinCount());         break;
+                case "3": value = String.valueOf(p.getLevel());           break;
+            }
+            System.out.printf("%-4d %-10s %-14s %-12s%n",
+                    i + 1, p.getNickname(), teamName, value);
+        }
     }
 }
