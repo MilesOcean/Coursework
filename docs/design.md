@@ -76,10 +76,10 @@ See `plan.md §4.2`. Enums are used to:
 |----------------------|----------------------------------------------------------------------------------------------------------|
 | `AuthService`        | `login(username, password) → Optional<Person>`, `logout(Person)`, `register(...)` (Admin only)           |
 | `PlayerService`      | `findById`, `findByName`, `add`, `update`, `delete`, `listAll`                                           |
-| `HeroService`        | `findByName`, `add`, `update`, `delete`, `getOwners(heroId)`                                             |
-| `TeamService`        | `findById`, `findByName`, `getOverview(teamId)` → `TeamOverviewDTO`, CRUD                                |
-| `MatchService`       | `addMatch`, `getLastN(playerId, n)`, `getLastN(teamId, n)`, `getHeroPickRate`                            |
-| `LeaderboardService` | `topPlayers(int x)` — sorts by winRate → level → name                                                    |
+| `HeroService`        | `findById`, `findByName`, `addHero`, `deleteHero`, `getOwners(heroId)`, `getHeroesOfPlayer(playerId)` |
+| `TeamService`        | `findById`, `findByName`, `addTeam`, `deleteTeam`, `addMember`, `removeMember`, `getMembers(team)`, `getTeamWinRate(team)`, `getTotalWins(team)`, `getTotalMatches(team)` |
+| `MatchService`       | `findById`, `addMatch`, `deleteMatch`, `getByTeamId(teamId)`, `getByPlayerId(playerId)`, `getHeroPickRate(heroId, matches)`, `formatHeroPicks`, `formatResult` |
+| `LeaderboardService` | `topByWinRate(n)`, `topByWins(n)`, `topByLevel(n)` — composite comparators with tie-breaking            |
 | `FileService`        | `loadAll()` on startup, `saveAll()` on shutdown; delegates to `CsvUtil`                                  |
 
 ### 2.5 Util Layer
@@ -87,8 +87,7 @@ See `plan.md §4.2`. Enums are used to:
 | Util            | Responsibility                                                                              |
 |-----------------|---------------------------------------------------------------------------------------------|
 | `CsvUtil<T>`    | Generic CSV read/write. Takes a `Function<String[], T>` parser and uses `T::toCsvRow`.      |
-| `PasswordUtil`  | `hash(password, salt)` via SHA-256; `generateSalt()` via `SecureRandom`; `verify(...)`.     |
-| `Validator`     | Static checks: non-empty, length range, numeric range, enum membership. Throws `ValidationException`. |
+| `PasswordHasher` | `hash(password, salt)` via SHA-256; constant-time comparison via `MessageDigest`.            |
 
 ---
 

@@ -157,7 +157,7 @@ All data lives in `data/` as UTF-8 CSV with a header row. Primary keys are bold.
 | File             | Columns                                                                                                              |
 |------------------|----------------------------------------------------------------------------------------------------------------------|
 | `players.csv`    | **id**, username, passwordHash, salt, nickname, level, rank, winCount, matchCount, teamId                            |
-| `admins.csv`     | **id**, username, passwordHash, salt, nickname, managedTeamIds                                                        |
+| `admins.csv`     | **id**, username, passwordHash, salt, nickname                                                                        |
 | `heroes.csv`     | **id**, name, type, baseAttack, baseDefense, baseHp, compatibleEquipmentIds (`;`-separated)                          |
 | `equipment.csv`  | **id**, name, type, price, attackBonus, defenseBonus, magicBonus, description                                        |
 | `teams.csv`      | **id**, name, captainId, rank, memberIds (`;`-separated)                                                              |

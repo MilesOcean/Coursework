@@ -66,7 +66,7 @@
 | **Test function** | View all teams, then drill into team detail |
 | **Input** | Admin login → option 2 → select team `1` (AG超玩会) → cancel → logout |
 | **Expected output** | List of 3 teams with member counts and total wins; team detail showing captain, rank, avg level, match/win stats, member roster with star on captain, and top player |
-| **Actual output** | Team list: AG超玩会 (3 members, 1630 wins), 武汉eStarPro (3, 1450), 重庆狼队 (4, 1880). AG超玩会 detail: Rank LEGEND, Captain 梦泪 ★, Avg Lvl 25.3, Matches 2950, Win Rate 55.3%. Roster: 梦泪 ★, 一诺, 久诚. Top Player: 梦泪 (56.7%, Lv 30) |
+| **Actual output** | Team list: AG超玩会 (5 members, 2380 wins), 武汉eStarPro (5, 2150), 重庆狼队 (5, 2270). AG超玩会 detail: Rank LEGEND, Captain 梦泪 ★, Avg Lvl 23.8, Matches 4550, Win Rate 52.3%. Roster: 梦泪 ★, 一诺, 久诚, 老帅, 爱思. Top Player: 梦泪 (56.7%, Lv 30) |
 | **Result** | **PASS** |
 | **Bug found** | None |
 
@@ -157,7 +157,7 @@
 | **Test function** | Verify data survives app restart via CSV round-trip |
 | **Input** | 1. Edit player nickname to `NewName2026` (TC-10), logout (triggers save). 2. Re-launch app, login as admin, search for `NewName2026`. |
 | **Expected output** | On second launch: "Loaded from CSV" message (not DataInitializer). Player `NewName2026` found with updated nickname. |
-| **Actual output** | Second launch: `Loaded from CSV: 10 players, 15 heroes, 20 equipment, 3 teams, 10 matches.` Player lookup for `NewName2026` returned the player with ID `22bd6ed0-...`, Team `AG超玩会`, Level `30`, all data intact. |
+| **Actual output** | Second launch: `Loaded from CSV: 15 players, 15 heroes, 20 equipment, 3 teams, 10 matches.` Player lookup for `NewName2026` returned the player with ID `22bd6ed0-...`, Team `AG超玩会`, Level `30`, all data intact. |
 | **Result** | **PASS** |
 | **Bug found** | None |
 
@@ -176,16 +176,16 @@
 
 ---
 
-## TC-14: Admin Add/Delete Data (Limitation)
+## TC-14: Admin Add/Delete Data (CRUD Operations)
 
 | Field | Detail |
 |-------|--------|
-| **Test function** | Check for admin CRUD capabilities |
-| **Input** | Admin login → examine all menu options |
-| **Expected output** | Options to add/delete players, heroes, equipment, teams, or matches |
-| **Actual output** | Admin menu only has view/search options (Player Lookup, Team Overview, Hero Details, Equipment Statistics, Match History, Leaderboard). **No add, delete, or modify operations exist.** |
-| **Result** | **N/A — Out of Scope (Not Implemented)** |
-| **Bug found** | Admin CRUD operations were planned but not implemented in this iteration due to time constraints. This is a scope limitation, not a defect. Documented in `ai/reflection.md` under Known Limitations. |
+| **Test function** | Verify admin can add and delete entities of all 5 types |
+| **Input** | Admin login → option 7 (Data Management) → verify submenu offers add/delete for players, heroes, equipment, teams, and matches |
+| **Expected output** | Data Management submenu displays 10 CRUD options (add + delete for each of 5 entity types) plus back option |
+| **Actual output** | Data Management submenu shows: 1. Add Player, 2. Delete Player, 3. Add Hero, 4. Delete Hero, 5. Add Equipment, 6. Delete Equipment, 7. Add Team, 8. Delete Team, 9. Add Match, 10. Delete Match, 0. Back to Admin Menu. Add Player tested — created `testplayer` with nickname `TestUser`, appeared in player list. Delete confirmed with "YES" prompt. |
+| **Result** | **PASS** |
+| **Bug found** | None. Admin CRUD for all 5 entity types is fully implemented with cascade cleanup (e.g. deleting a hero removes it from all players' heroPools and equippedItems). |
 
 ---
 
@@ -271,14 +271,14 @@
 | TC-11 | Player permission restriction | PASS |
 | TC-12 | File save/load round-trip | PASS |
 | TC-13 | Login retry limit | PASS |
-| TC-14 | Admin CRUD operations | N/A — Out of Scope |
+| TC-14 | Admin CRUD operations | PASS |
 | TC-15 | CSV comma/quote escaping | PASS |
 | TC-16 | Player.getHeroPool() immutability | PASS |
 | TC-17 | Service defensive copy | PASS |
 | TC-18 | hasData() strict check | PASS |
 | TC-19 | Graceful EOF handling | FAIL |
 
-**Pass rate:** 17 / 18 implemented features passed (94.4%); 1 out-of-scope item (TC-14)
+**Pass rate:** 18 / 19 features passed (94.7%); 1 known limitation (TC-19)
 
 **Test coverage summary:**
 - Login & authentication: TC-01, TC-02, TC-13
@@ -287,6 +287,6 @@
 - Role-based access control: TC-11
 - Data mutation: TC-10
 - Persistence: TC-12
-- Missing features: TC-14
+- Missing features: (none — all planned features implemented)
 - Review-fix regression: TC-15, TC-16, TC-17, TC-18
 - Known limitations: TC-19
