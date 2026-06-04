@@ -98,7 +98,46 @@ public class Player extends Person implements Rankable, CsvPersistable {
                 rank.name(),
                 String.valueOf(winCount),
                 String.valueOf(matchCount),
-                teamId != null ? teamId : "");
+                teamId != null ? teamId : "",
+                String.join(";", heroPool));
+    }
+
+    /**
+     * Parses a CSV row into a Player.
+     * Format: id,username,passwordHash,salt,nickname,level,rank,winCount,matchCount,teamId,heroPool
+     * @return Player or null if the row is malformed.
+     */
+    public static Player fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 10) return null;
+            String id = fields[0];
+            String username = fields[1];
+            String passwordHash = fields[2];
+            String salt = fields[3];
+            String nickname = fields[4];
+            int level = Integer.parseInt(fields[5]);
+            Rank rank = Rank.valueOf(fields[6]);
+            int winCount = Integer.parseInt(fields[7]);
+            int matchCount = Integer.parseInt(fields[8]);
+            String teamId = fields[9].isEmpty() ? null : fields[9];
+
+            Player p = new Player(id, username, passwordHash, salt, nickname);
+            p.setLevel(level);
+            p.setRank(rank);
+            p.setWinCount(winCount);
+            p.setMatchCount(matchCount);
+            p.setTeamId(teamId);
+
+            // heroPool (field 10, optional)
+            if (fields.length >= 11 && !fields[10].isEmpty()) {
+                for (String hid : fields[10].split(";")) {
+                    if (!hid.isEmpty()) p.addHero(hid);
+                }
+            }
+            return p;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /* ---- getters / setters ---- */

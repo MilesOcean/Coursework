@@ -56,6 +56,34 @@ public class Hero implements CsvPersistable {
                 String.join(";", compatibleEquipmentIds));
     }
 
+    /**
+     * Parses a CSV row into a Hero.
+     * Format: id,name,heroType,baseAttack,baseDefense,baseHp,compatibleEquipmentIds
+     * @return Hero or null if the row is malformed.
+     */
+    public static Hero fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 6) return null;
+            String id = fields[0];
+            String name = fields[1];
+            HeroType type = HeroType.valueOf(fields[2]);
+            int atk = Integer.parseInt(fields[3]);
+            int def = Integer.parseInt(fields[4]);
+            int hp = Integer.parseInt(fields[5]);
+
+            Hero h = new Hero(id, name, type, atk, def, hp);
+
+            if (fields.length >= 7 && !fields[6].isEmpty()) {
+                for (String eid : fields[6].split(";")) {
+                    if (!eid.isEmpty()) h.addCompatibleEquipment(eid);
+                }
+            }
+            return h;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /* ---- getters / setters ---- */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

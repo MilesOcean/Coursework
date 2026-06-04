@@ -69,8 +69,7 @@ public class MatchRecord implements CsvPersistable {
     /* ---- CsvPersistable ---- */
     @Override
     public String toCsvRow() {
-        // heroPicks formatted as: team1:p1:h1;p2:h2|team2:p3:h3;p4:h4
-        // Simplified: just flatten to playerId:heroId pairs separated by ;
+        // heroPicks formatted as: playerId:heroId pairs separated by ;
         StringBuilder picks = new StringBuilder();
         for (Map.Entry<String, String> e : heroPicks.entrySet()) {
             if (picks.length() > 0) picks.append(";");
@@ -85,6 +84,40 @@ public class MatchRecord implements CsvPersistable {
                 mvpPlayerId != null ? mvpPlayerId : "",
                 String.valueOf(durationMinutes),
                 picks.toString());
+    }
+
+    /**
+     * Parses a CSV row into a MatchRecord.
+     * Format: id,date,team1Id,team2Id,result,mvpPlayerId,durationMinutes,heroPicks
+     * heroPicks: playerId:heroId pairs separated by ;
+     * @return MatchRecord or null if the row is malformed.
+     */
+    public static MatchRecord fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 7) return null;
+            String id = fields[0];
+            LocalDate date = LocalDate.parse(fields[1]);
+            String team1Id = fields[2];
+            String team2Id = fields[3];
+            MatchResult result = MatchResult.valueOf(fields[4]);
+            String mvpId = fields[5].isEmpty() ? null : fields[5];
+            int duration = Integer.parseInt(fields[6]);
+
+            MatchRecord m = new MatchRecord(id, date, team1Id, team2Id, result, mvpId, duration);
+
+            // heroPicks (field 7, optional)
+            if (fields.length >= 8 && !fields[7].isEmpty()) {
+                for (String pair : fields[7].split(";")) {
+                    String[] kv = pair.split(":", 2);
+                    if (kv.length == 2) {
+                        m.addHeroPick(kv[0], kv[1]);
+                    }
+                }
+            }
+            return m;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /* ---- getters / setters ---- */

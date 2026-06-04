@@ -138,6 +138,35 @@ public class Team implements Rankable, CsvPersistable {
                 String.join(";", memberIds));
     }
 
+    /**
+     * Parses a CSV row into a Team.
+     * Format: id,name,captainId,rank,memberIds(;-separated)
+     * @return Team or null if the row is malformed.
+     */
+    public static Team fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 5) return null;
+            String id = fields[0];
+            String name = fields[1];
+            String captainId = fields[2].isEmpty() ? null : fields[2];
+            Rank rank = Rank.valueOf(fields[3]);
+
+            Team t = new Team(id, name, captainId, rank);
+
+            // memberIds (field 4, ;-separated) — add those not already present (captain is auto-added)
+            if (!fields[4].isEmpty()) {
+                for (String mid : fields[4].split(";")) {
+                    if (!mid.isEmpty() && !mid.equals(captainId)) {
+                        t.addMember(mid);
+                    }
+                }
+            }
+            return t;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /* ---- getters / setters ---- */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

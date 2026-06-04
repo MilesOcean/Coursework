@@ -281,7 +281,7 @@ public class DataInitializer {
     private void addPlayer(String username, String nickname, Rank rank,
                            int level, int matchCount, int winCount) {
         String[] cred = credentials(username);
-        Player p = new Player(cred[0], username, cred[1], cred[2], nickname);
+        Player p = new Player(cred[0], username, cred[2], cred[1], nickname);
         p.setRank(rank);
         p.setLevel(level);
         p.setMatchCount(matchCount);

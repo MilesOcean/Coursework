@@ -16,6 +16,8 @@ import java.util.*;
  *   - Login with 3-attempt limit, role-based menus
  *   - Admin: full CRUD access (player, team, hero, equipment, match, leaderboard)
  *   - Player: read-only views + edit own nickname
+ *   - Data persisted to data/*.csv on logout/exit; loaded from CSV on startup
+ *     with automatic fallback to DataInitializer on first run.
  */
 public class Main {
 
@@ -31,45 +33,84 @@ public class Main {
     private static LeaderboardService   leaderboardService;
     private static AuthenticationService authService;
 
+    /* raw entity lists — held for saveData() after services are built */
+    private static List<Player>      playerList;
+    private static List<Admin>       adminList;
+    private static List<Hero>        heroList;
+    private static List<Equipment>   equipList;
+    private static List<Team>        teamList;
+    private static List<MatchRecord> matchList;
+
     public static void main(String[] args) {
         System.out.println("Loading data...");
         loadData();
 
         System.out.println("Welcome to the Honor of Kings Management System!");
         runLoginLoop();
+
+        // Final save before JVM exit
+        saveData();
+        System.out.println("Goodbye!");
     }
 
     /* ---- data loading ---- */
     private static void loadData() {
-        DataInitializer init = new DataInitializer();
-        playerService = new PlayerService(
-                init.getPlayers(),
-                init.getHeroes(),
-                init.getEquipment(),
-                init.getTeams());
-        teamService = new TeamService(init.getTeams(), init.getPlayers());
-        heroService = new HeroService(init.getHeroes(), init.getPlayers(),
-                init.getEquipment());
-        equipService = new EquipmentService(init.getEquipment(), init.getPlayers());
-        matchService = new MatchService(init.getMatches(), init.getTeams(),
-                init.getPlayers(), init.getHeroes());
-        leaderboardService = new LeaderboardService(init.getPlayers(), init.getTeams());
+        // 1. Try CSV files first
+        FileService.Data csv = FileService.loadAll();
 
-        // Seed one admin account
-        String adminSalt = UUID.randomUUID().toString().substring(0, 16);
-        String adminHash = PasswordHasher.hash(adminSalt, "admin");
-        Admin admin = new Admin(UUID.randomUUID().toString(), "admin",
-                adminHash, adminSalt, "Administrator");
-        List<Admin> admins = List.of(admin);
+        if (FileService.hasData(csv)) {
+            System.out.println("  Loaded from CSV: " + csv.players.size() + " players, "
+                    + csv.heroes.size() + " heroes, "
+                    + csv.equipment.size() + " equipment, "
+                    + csv.teams.size() + " teams, "
+                    + csv.matches.size() + " matches.");
 
-        authService = new AuthenticationService(admins, init.getPlayers());
+            playerList = csv.players;
+            heroList   = csv.heroes;
+            equipList  = csv.equipment;
+            teamList   = csv.teams;
+            matchList  = csv.matches;
+            adminList  = new ArrayList<>(csv.admins);
+        } else {
+            // 2. Fallback: generate sample data
+            System.out.println("  No CSV data found — generating sample data.");
+            DataInitializer init = new DataInitializer();
+            playerList = new ArrayList<>(init.getPlayers());
+            heroList   = new ArrayList<>(init.getHeroes());
+            equipList  = new ArrayList<>(init.getEquipment());
+            teamList   = new ArrayList<>(init.getTeams());
+            matchList  = new ArrayList<>(init.getMatches());
+            adminList  = new ArrayList<>();
 
-        System.out.println("  Loaded: " + init.getPlayers().size() + " players, "
-                + init.getHeroes().size() + " heroes, "
-                + init.getEquipment().size() + " equipment, "
-                + init.getTeams().size() + " teams, "
-                + init.getMatches().size() + " matches.");
-        System.out.println("  Admin account: admin / admin");
+            System.out.println("  Loaded: " + playerList.size() + " players, "
+                    + heroList.size() + " heroes, "
+                    + equipList.size() + " equipment, "
+                    + teamList.size() + " teams, "
+                    + matchList.size() + " matches.");
+        }
+
+        // 3. Always seed the default admin if no admin exists
+        if (adminList.isEmpty()) {
+            String adminSalt = UUID.randomUUID().toString().substring(0, 16);
+            String adminHash = PasswordHasher.hash(adminSalt, "admin");
+            Admin admin = new Admin(UUID.randomUUID().toString(), "admin",
+                    adminHash, adminSalt, "Administrator");
+            adminList.add(admin);
+            System.out.println("  Seeded admin account: admin / admin");
+        }
+
+        // 4. Build services
+        playerService      = new PlayerService(playerList, heroList, equipList, teamList);
+        teamService        = new TeamService(teamList, playerList);
+        heroService        = new HeroService(heroList, playerList, equipList);
+        equipService       = new EquipmentService(equipList, playerList);
+        matchService       = new MatchService(matchList, teamList, playerList, heroList);
+        leaderboardService = new LeaderboardService(playerList, teamList);
+        authService        = new AuthenticationService(adminList, playerList);
+    }
+
+    private static void saveData() {
+        FileService.saveAll(playerList, adminList, heroList, equipList, teamList, matchList);
     }
 
     /* ================================================================
@@ -144,6 +185,7 @@ public class Main {
                 case "6": handleLeaderboard();    break;
                 case "7":
                     System.out.println("Logging out...");
+                    saveData();
                     authService.logout();
                     return;
                 default:
@@ -178,6 +220,7 @@ public class Main {
                 case "5": handleEditOwnNickname();  break;
                 case "6":
                     System.out.println("Logging out...");
+                    saveData();
                     authService.logout();
                     return;
                 default:

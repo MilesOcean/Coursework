@@ -50,6 +50,28 @@ public class Equipment implements CsvPersistable {
                 description);
     }
 
+    /**
+     * Parses a CSV row into an Equipment.
+     * Format: id,name,type,price,attackBonus,defenseBonus,magicBonus,description
+     * @return Equipment or null if the row is malformed.
+     */
+    public static Equipment fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 8) return null;
+            String id = fields[0];
+            String name = fields[1];
+            EquipmentType type = EquipmentType.valueOf(fields[2]);
+            int price = Integer.parseInt(fields[3]);
+            int atk = Integer.parseInt(fields[4]);
+            int def = Integer.parseInt(fields[5]);
+            int mag = Integer.parseInt(fields[6]);
+            String desc = fields[7];
+            return new Equipment(id, name, type, price, atk, def, mag, desc);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /* ---- getters / setters ---- */
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

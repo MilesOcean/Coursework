@@ -53,6 +53,33 @@ public class Admin extends Person implements CsvPersistable {
                 String.join(";", managedTeamIds));
     }
 
+    /**
+     * Parses a CSV row into an Admin.
+     * Format: id,username,passwordHash,salt,nickname,managedTeamIds(;-separated)
+     * @return Admin or null if the row is malformed.
+     */
+    public static Admin fromCsvRow(String[] fields) {
+        try {
+            if (fields.length < 5) return null;
+            String id = fields[0];
+            String username = fields[1];
+            String passwordHash = fields[2];
+            String salt = fields[3];
+            String nickname = fields[4];
+
+            Admin a = new Admin(id, username, passwordHash, salt, nickname);
+
+            if (fields.length >= 6 && !fields[5].isEmpty()) {
+                for (String tid : fields[5].split(";")) {
+                    if (!tid.isEmpty()) a.addManagedTeam(tid);
+                }
+            }
+            return a;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     /* ---- getters / setters ---- */
     public List<String> getManagedTeamIds() { return managedTeamIds; }
     public void setManagedTeamIds(List<String> managedTeamIds) { this.managedTeamIds = managedTeamIds; }
