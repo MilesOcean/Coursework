@@ -94,9 +94,45 @@
   and the naming makes demo output look authentic. The only issue is
   that hashing is inlined instead of delegating to `PasswordUtil`,
   which I will refactor manually rather than re-prompt for.
-- **Related Commit:** 28833ee
+- **Related Commit:** 3d8796e
 - **Prompt Strategy:** Constraint-first prompt — stated minimum counts
   up front so the AI could not under-deliver, gave a style hint
   ("Honor of Kings style, but simple") to prevent over-engineering,
   and split the output into "code only + chat explanation" so the
   source file stays clean while rationale lands in this log.
+
+---
+
+## Prompt 5
+- **Date/Time:** 2026-06-04 13:31
+- **AI Tool / Model:** Deepseek-v4-pro
+- **Agent Role:** Implementation Agent (spec-anchoring)
+- **Prompt (verbatim):**
+  > "From this point on, every step you take must strictly follow
+  > the contents of docs/plan.md, docs/design.md, and docs/uml.png.
+  > Before generating any new code, re-read these three files. If a
+  > request conflicts with them, stop and ask me rather than
+  > guessing. Do not invent class names, packages, methods, or
+  > fields that are not already defined in those documents."
+- **AI Response Summary:** Acknowledged the constraint and
+  confirmed it would re-read `plan.md`, `design.md`, and `uml.png`
+  before any subsequent code-generation step, and would halt to ask
+  whenever a request conflicted with the three spec documents.
+- **My Decision:** Accepted
+- **Reason:** Locking the AI to the three approved spec documents
+  prevents the structural drift seen earlier (e.g. the
+  `HeroType` vs `HeroClass` naming mismatch flagged by the
+  Architect Agent, and the duplicate fields between `Person` and
+  `Player`). It turns plan.md / design.md from passive
+  documentation into **active constraints**, which is what the
+  assignment expects — the AI follows the design, it does not
+  redesign.
+- **Related Commit:** 
+- **Prompt Strategy:** Spec-anchoring prompt — sets a long-lived
+  rule for the rest of the session rather than a one-off task.
+  Three reinforcement techniques are combined in one prompt:
+  (1) an **explicit file list** so the AI knows exactly which docs
+  to re-load, (2) a **"stop and ask" clause** to block silent
+  guessing when specs are ambiguous, and (3) a **negative
+  constraint** ("Do not invent...") to suppress the AI's natural
+  tendency to hallucinate plausible-looking class or method names.
