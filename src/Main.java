@@ -1,15 +1,10 @@
+import enums.Role;
 import model.*;
-import service.EquipmentService;
-import service.HeroService;
-import service.LeaderboardService;
-import service.MatchService;
-import service.PlayerService;
-import service.TeamService;
+import service.*;
 import util.DataInitializer;
+import util.PasswordHasher;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Entry point — console-based menu for the Honor of Kings system.
@@ -17,34 +12,31 @@ import java.util.Scanner;
  * Architecture (from design.md §4):
  *   Main (CLI) → Service layer → Model layer
  *
- * Currently implemented:
- *   - Player lookup (by ID or name) — plan.md §2.1
- *   - Team overview (list all + roster detail) — plan.md §2.2
- *   - Hero details (search + stats + owners) — plan.md §2.3
- *   - Equipment statistics (ranked by usage) — plan.md §2.4
- *   - Match history (list + filter by team) — plan.md §2.5
- *   - Leaderboard (top 10 by chosen dimension) — plan.md §2.6
- *
- * Future: admin menu, team overview, hero details, leaderboard, etc.
+ * Features:
+ *   - Login with 3-attempt limit, role-based menus
+ *   - Admin: full CRUD access (player, team, hero, equipment, match, leaderboard)
+ *   - Player: read-only views + edit own nickname
  */
 public class Main {
 
     private static final Scanner scanner = new Scanner(System.in);
+    private static final int MAX_LOGIN_ATTEMPTS = 3;
 
     /* shared state */
-    private static PlayerService playerService;
-    private static TeamService   teamService;
-    private static HeroService      heroService;
-    private static EquipmentService  equipService;
-    private static MatchService        matchService;
+    private static PlayerService        playerService;
+    private static TeamService          teamService;
+    private static HeroService          heroService;
+    private static EquipmentService     equipService;
+    private static MatchService         matchService;
     private static LeaderboardService   leaderboardService;
+    private static AuthenticationService authService;
 
     public static void main(String[] args) {
         System.out.println("Loading data...");
         loadData();
 
         System.out.println("Welcome to the Honor of Kings Management System!");
-        runMainMenu();
+        runLoginLoop();
     }
 
     /* ---- data loading ---- */
@@ -62,57 +54,173 @@ public class Main {
         matchService = new MatchService(init.getMatches(), init.getTeams(),
                 init.getPlayers(), init.getHeroes());
         leaderboardService = new LeaderboardService(init.getPlayers(), init.getTeams());
+
+        // Seed one admin account
+        String adminSalt = UUID.randomUUID().toString().substring(0, 16);
+        String adminHash = PasswordHasher.hash(adminSalt, "admin");
+        Admin admin = new Admin(UUID.randomUUID().toString(), "admin",
+                adminHash, adminSalt, "Administrator");
+        List<Admin> admins = List.of(admin);
+
+        authService = new AuthenticationService(admins, init.getPlayers());
+
         System.out.println("  Loaded: " + init.getPlayers().size() + " players, "
                 + init.getHeroes().size() + " heroes, "
                 + init.getEquipment().size() + " equipment, "
                 + init.getTeams().size() + " teams, "
                 + init.getMatches().size() + " matches.");
+        System.out.println("  Admin account: admin / admin");
     }
 
-    /* ---- main menu ---- */
-    private static void runMainMenu() {
+    /* ================================================================
+     *  LOGIN LOOP
+     * ================================================================ */
+    private static void runLoginLoop() {
+        while (true) {
+            if (attemptLogin()) {
+                Person user = authService.getCurrentUser();
+                if (user.getRole() == Role.ADMIN) {
+                    runAdminMenu();
+                } else {
+                    runPlayerMenu();
+                }
+                // logout returns here — loop back to login
+            } else {
+                System.out.println("Too many failed attempts. Exiting.");
+                return;
+            }
+        }
+    }
+
+    private static boolean attemptLogin() {
+        for (int attempt = 1; attempt <= MAX_LOGIN_ATTEMPTS; attempt++) {
+            System.out.println();
+            System.out.print("Username: ");
+            String username = scanner.nextLine().trim();
+            System.out.print("Password: ");
+            String password = scanner.nextLine().trim();
+
+            if (authService.login(username, password)) {
+                Person user = authService.getCurrentUser();
+                System.out.println("Login successful! Welcome, "
+                        + user.getNickname() + " (" + user.getRole() + ").");
+                return true;
+            }
+
+            int remaining = MAX_LOGIN_ATTEMPTS - attempt;
+            if (remaining > 0) {
+                System.out.println("Invalid credentials. " + remaining
+                        + " attempt(s) remaining.");
+            }
+        }
+        return false;
+    }
+
+    /* ================================================================
+     *  ADMIN MENU — full access to all features
+     * ================================================================ */
+    private static void runAdminMenu() {
         while (true) {
             System.out.println();
-            System.out.println("===== Honor of Kings Management System =====");
+            System.out.println("===== Admin Menu =====");
             System.out.println("1. Player Lookup");
             System.out.println("2. Team Overview");
             System.out.println("3. Hero Details");
             System.out.println("4. Equipment Statistics");
             System.out.println("5. Match History");
             System.out.println("6. Leaderboard");
-            System.out.println("0. Exit");
-            System.out.println("============================================");
+            System.out.println("7. Logout");
+            System.out.println("======================");
             System.out.print("Choice > ");
 
             String input = scanner.nextLine().trim();
 
             switch (input) {
-                case "1":
-                    handlePlayerLookup();
-                    break;
-                case "2":
-                    handleTeamOverview();
-                    break;
-                case "3":
-                    handleHeroDetails();
-                    break;
-                case "4":
-                    handleEquipmentStats();
-                    break;
-                case "5":
-                    handleMatchHistory();
-                    break;
-                case "6":
-                    handleLeaderboard();
-                    break;
-                case "0":
-                    System.out.println("Goodbye!");
+                case "1": handlePlayerLookup();  break;
+                case "2": handleTeamOverview();   break;
+                case "3": handleHeroDetails();    break;
+                case "4": handleEquipmentStats(); break;
+                case "5": handleMatchHistory();   break;
+                case "6": handleLeaderboard();    break;
+                case "7":
+                    System.out.println("Logging out...");
+                    authService.logout();
                     return;
                 default:
-                    System.out.println("Invalid option. Please enter 1–6 or 0.");
+                    System.out.println("Invalid option. Please enter 1–7.");
             }
         }
     }
+
+    /* ================================================================
+     *  PLAYER MENU — read-only views + edit own nickname
+     * ================================================================ */
+    private static void runPlayerMenu() {
+        while (true) {
+            System.out.println();
+            System.out.println("===== Player Menu =====");
+            System.out.println("1. View Heroes");
+            System.out.println("2. View Teams");
+            System.out.println("3. View Leaderboard");
+            System.out.println("4. View Match History");
+            System.out.println("5. Edit My Nickname");
+            System.out.println("6. Logout");
+            System.out.println("=======================");
+            System.out.print("Choice > ");
+
+            String input = scanner.nextLine().trim();
+
+            switch (input) {
+                case "1": handleHeroDetails();    break;
+                case "2": handleTeamOverview();     break;
+                case "3": handleLeaderboard();      break;
+                case "4": handleMatchHistory();     break;
+                case "5": handleEditOwnNickname();  break;
+                case "6":
+                    System.out.println("Logging out...");
+                    authService.logout();
+                    return;
+                default:
+                    System.out.println("Invalid option. Please enter 1–6.");
+            }
+        }
+    }
+
+    private static void handleEditOwnNickname() {
+        Person user = authService.getCurrentUser();
+        if (!(user instanceof Player)) {
+            System.out.println("Only players can edit their nickname.");
+            return;
+        }
+        Player self = (Player) user;
+
+        System.out.println();
+        System.out.println("--- Edit Nickname ---");
+        System.out.println("Current nickname: " + self.getNickname());
+        System.out.print("New nickname (or 0 to cancel): ");
+        String newNick = scanner.nextLine().trim();
+
+        if (newNick.equals("0")) return;
+        if (newNick.isEmpty()) {
+            System.out.println("Error: nickname cannot be empty.");
+            return;
+        }
+        if (newNick.equals(self.getNickname())) {
+            System.out.println("No change — same as current nickname.");
+            return;
+        }
+
+        boolean ok = playerService.updateNickname(self.getId(), newNick);
+        if (ok) {
+            System.out.println("Nickname updated to: " + newNick);
+        } else {
+            System.out.println("Failed to update nickname.");
+        }
+    }
+
+    /* ================================================================
+     *  SHARED HANDLERS (used by both menus)
+     * ================================================================ */
 
     /* ---- player lookup (plan.md §2.1) ---- */
     private static void handlePlayerLookup() {
@@ -127,7 +235,6 @@ public class Main {
             return;
         }
 
-        // Try ID first (UUID), then name (nickname)
         Optional<Player> result = playerService.findById(term);
         if (result.isEmpty()) {
             result = playerService.findByName(term);
@@ -141,7 +248,6 @@ public class Main {
         displayPlayer(result.get());
     }
 
-    /* ---- display ---- */
     private static void displayPlayer(Player p) {
         System.out.println();
         System.out.println("┌──────────────────────────────────────────┐");
@@ -154,10 +260,8 @@ public class Main {
                 p.getWinRate(), p.getWinCount(), p.getMatchCount());
         System.out.println("└──────────────────────────────────────────┘");
 
-        // Owned heroes
         System.out.println("  Owned Heroes: " + playerService.formatHeroPool(p.getHeroPool()));
 
-        // Equipped items per hero
         System.out.println("  Equipped Items:");
         System.out.print(playerService.formatEquippedItems(p.getEquippedItems()));
     }
@@ -166,7 +270,6 @@ public class Main {
     private static void handleTeamOverview() {
         System.out.println();
 
-        // Step 1 — list all teams
         List<Team> allTeams = teamService.listAll();
         System.out.println("--- All Teams ---");
         System.out.printf("%-4s %-16s %-8s %-10s%n", "#", "Name", "Members", "Total Wins");
@@ -180,7 +283,6 @@ public class Main {
         }
         System.out.println();
 
-        // Step 2 — select one team
         System.out.print("Enter team name or # to view details (0 to cancel): ");
         String input = scanner.nextLine().trim();
         if (input.equals("0")) return;
@@ -191,17 +293,13 @@ public class Main {
 
         Team selected = null;
 
-        // Try selection by number
         try {
             int index = Integer.parseInt(input) - 1;
             if (index >= 0 && index < allTeams.size()) {
                 selected = allTeams.get(index);
             }
-        } catch (NumberFormatException ignored) {
-            // not a number — try name search
-        }
+        } catch (NumberFormatException ignored) {}
 
-        // Try by ID or name
         if (selected == null) {
             Optional<Team> result = teamService.findById(input);
             if (result.isEmpty()) {
@@ -231,7 +329,6 @@ public class Main {
         System.out.printf("  Win Rate: %.1f%%%n", teamService.getTeamWinRate(t));
         System.out.println("└──────────────────────────────────────────────────┘");
 
-        // Member roster
         System.out.println();
         System.out.printf("  %-4s %-10s %-6s %-10s %-7s %-8s%n",
                 "#", "Name", "Level", "Rank", "WinRate", "Matches");
@@ -248,7 +345,6 @@ public class Main {
                     p.getMatchCount());
         }
 
-        // Top player
         Player top = t.getTopPlayer(members);
         if (top != null) {
             System.out.println();
@@ -271,7 +367,6 @@ public class Main {
             return;
         }
 
-        // Try ID first, then name
         Optional<Hero> result = heroService.findById(term);
         if (result.isEmpty()) {
             result = heroService.findByName(term);
@@ -294,10 +389,8 @@ public class Main {
         System.out.printf("  Stats:    %s%n", heroService.formatBaseStats(h));
         System.out.println("└──────────────────────────────────────────┘");
 
-        // Compatible equipment
         System.out.println("  Compatible Equipment: " + heroService.formatCompatibleEquipment(h));
 
-        // Owners
         System.out.println("  Owned by: " + heroService.formatOwners(h));
     }
 
@@ -321,7 +414,6 @@ public class Main {
                     i + 1, e.getName(), e.getType(), count);
         }
 
-        // Summary line
         long usedCount = ranked.stream()
                 .filter(e -> equipService.getUsageCount(e.getId()) > 0)
                 .count();
@@ -333,24 +425,20 @@ public class Main {
     private static void handleMatchHistory() {
         System.out.println();
 
-        // Step 1 — show all matches
         List<MatchRecord> allMatches = matchService.listAll();
         displayMatchTable(allMatches);
 
-        // Step 2 — filter prompt
         System.out.print("Enter team name to filter (Enter to return, 0 to cancel): ");
         String input = scanner.nextLine().trim();
         if (input.isEmpty()) return;
         if (input.equals("0")) return;
 
-        // Find the team
         Optional<Team> team = matchService.findTeam(input);
         if (team.isEmpty()) {
             System.out.println("No team found with name: \"" + input + "\"");
             return;
         }
 
-        // Filter and display
         Team t = team.get();
         List<MatchRecord> filtered = matchService.getByTeamId(t.getId());
         if (filtered.isEmpty()) {
@@ -382,7 +470,6 @@ public class Main {
                     matchService.formatResult(m),
                     matchService.getMvpName(m),
                     m.getDurationMinutes() + " min");
-            // Hero picks on a sub-line
             System.out.println("  Picks: " + matchService.formatHeroPicks(m));
         }
 

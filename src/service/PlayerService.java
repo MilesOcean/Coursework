@@ -69,6 +69,17 @@ public class PlayerService {
         return Collections.unmodifiableList(players);
     }
 
+    /** Updates a player's nickname. Returns false if player not found. */
+    public boolean updateNickname(String playerId, String newNickname) {
+        if (playerId == null || newNickname == null || newNickname.isBlank()) return false;
+        Optional<Player> opt = findById(playerId);
+        if (opt.isPresent()) {
+            opt.get().setNickname(newNickname.trim());
+            return true;
+        }
+        return false;
+    }
+
     /* ---- ID → name resolution (for display) ---- */
 
     /** @return team name, or "No Team" if teamId is null/unknown. */
