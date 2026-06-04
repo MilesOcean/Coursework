@@ -512,14 +512,31 @@ public class Main {
 
         displayMatchTable(toDisplay);
 
-        System.out.print("Enter team name to filter (Enter to return, 0 to cancel): ");
+        // Filter by team or player name
+        System.out.print("Filter by team or player name (Enter to return, 0 to cancel): ");
         String input = scanner.nextLine().trim();
         if (input.isEmpty()) return;
         if (input.equals("0")) return;
 
+        // Try player lookup first, then team lookup
+        Optional<Player> filterPlayer = playerService.findByName(input);
+        if (filterPlayer.isPresent()) {
+            Player fp = filterPlayer.get();
+            List<MatchRecord> filtered = matchService.getByPlayerId(fp.getId());
+            if (filtered.isEmpty()) {
+                System.out.println("No matches recorded for player: " + fp.getNickname());
+                return;
+            }
+            System.out.println();
+            System.out.println("--- Matches for " + fp.getNickname() + " ---");
+            displayMatchTable(filtered);
+            System.out.println("Total: " + filtered.size() + " match(es)");
+            return;
+        }
+
         Optional<Team> team = matchService.findTeam(input);
         if (team.isEmpty()) {
-            System.out.println("No team found with name: \"" + input + "\"");
+            System.out.println("No player or team found with name: \"" + input + "\"");
             return;
         }
 
@@ -641,29 +658,34 @@ public class Main {
         while (true) {
             System.out.println();
             System.out.println("--- Data Management ---");
-            System.out.println("  1. Add Player        2. Delete Player");
-            System.out.println("  3. Add Hero          4. Delete Hero");
-            System.out.println("  5. Add Equipment     6. Delete Equipment");
-            System.out.println("  7. Add Team          8. Delete Team");
-            System.out.println("  9. Add Match        10. Delete Match");
+            System.out.println("  1. Add Player        2. Delete Player        3. Edit Player");
+            System.out.println("  4. Add Hero          5. Delete Hero          6. Edit Hero");
+            System.out.println("  7. Add Equipment     8. Delete Equipment     9. Edit Equipment");
+            System.out.println(" 10. Add Team         11. Delete Team         12. Edit Team");
+            System.out.println(" 13. Add Match        14. Delete Match        15. Edit Match");
             System.out.println("  0. Back to Admin Menu");
             System.out.print("Choice > ");
 
             String input = scanner.nextLine().trim();
             switch (input) {
-                case "1":  handleAddPlayer();      break;
-                case "2":  handleDeletePlayer();   break;
-                case "3":  handleAddHero();        break;
-                case "4":  handleDeleteHero();     break;
-                case "5":  handleAddEquipment();   break;
-                case "6":  handleDeleteEquipment();break;
-                case "7":  handleAddTeam();        break;
-                case "8":  handleDeleteTeam();     break;
-                case "9":  handleAddMatch();       break;
-                case "10": handleDeleteMatch();    break;
+                case "1":  handleAddPlayer();        break;
+                case "2":  handleDeletePlayer();     break;
+                case "3":  handleEditPlayer();       break;
+                case "4":  handleAddHero();          break;
+                case "5":  handleDeleteHero();       break;
+                case "6":  handleEditHero();         break;
+                case "7":  handleAddEquipment();     break;
+                case "8":  handleDeleteEquipment();  break;
+                case "9":  handleEditEquipment();    break;
+                case "10": handleAddTeam();          break;
+                case "11": handleDeleteTeam();       break;
+                case "12": handleEditTeam();         break;
+                case "13": handleAddMatch();         break;
+                case "14": handleDeleteMatch();      break;
+                case "15": handleEditMatch();        break;
                 case "0":  return;
                 default:
-                    System.out.println("Invalid option. Please enter 0–10.");
+                    System.out.println("Invalid option. Please enter 0–15.");
             }
         }
     }
@@ -997,5 +1019,359 @@ public class Main {
         matchService.deleteMatch(term);
         matchList.removeIf(m -> m.getId().equals(term));
         System.out.println("Match deleted.");
+    }
+
+    /* ---- edit player ---- */
+    private static void handleEditPlayer() {
+        System.out.println();
+        System.out.println("--- Edit Player ---");
+        List<Player> all = playerService.listAll();
+        for (int i = 0; i < all.size(); i++) {
+            Player p = all.get(i);
+            System.out.printf("  %d. %s  (%s)%n", i + 1, p.getNickname(), p.getUsername());
+        }
+        System.out.print("Enter name or ID of player to edit (0 to cancel): ");
+        String term = scanner.nextLine().trim();
+        if (term.equals("0")) return;
+
+        Optional<Player> opt = playerService.findById(term);
+        if (opt.isEmpty()) opt = playerService.findByName(term);
+        if (opt.isEmpty()) {
+            System.out.println("Player not found.");
+            return;
+        }
+        Player p = opt.get();
+
+        System.out.println();
+        System.out.println("Editing: " + p.getNickname() + "  (Enter to keep current value)");
+
+        System.out.print("Nickname [" + p.getNickname() + "]: ");
+        String val = scanner.nextLine().trim();
+        if (!val.isEmpty()) p.setNickname(val);
+
+        System.out.print("Level [" + p.getLevel() + "]: ");
+        String lv = scanner.nextLine().trim();
+        if (!lv.isEmpty()) {
+            try { p.setLevel(Integer.parseInt(lv)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Rank [" + p.getRank() + "]: ");
+        String rk = scanner.nextLine().trim().toUpperCase();
+        if (!rk.isEmpty()) {
+            try { p.setRank(Rank.valueOf(rk)); } catch (IllegalArgumentException e) {
+                System.out.println("Invalid rank — kept current.");
+            }
+        }
+
+        System.out.print("Win count [" + p.getWinCount() + "]: ");
+        String wc = scanner.nextLine().trim();
+        if (!wc.isEmpty()) {
+            try { p.setWinCount(Integer.parseInt(wc)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Match count [" + p.getMatchCount() + "]: ");
+        String mc = scanner.nextLine().trim();
+        if (!mc.isEmpty()) {
+            try { p.setMatchCount(Integer.parseInt(mc)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        saveData();
+        System.out.println("Player updated.");
+    }
+
+    /* ---- edit hero ---- */
+    private static void handleEditHero() {
+        System.out.println();
+        System.out.println("--- Edit Hero ---");
+        List<Hero> all = heroService.listAll();
+        for (int i = 0; i < all.size(); i++) {
+            System.out.printf("  %d. %s  (%s)%n", i + 1, all.get(i).getName(), all.get(i).getHeroType());
+        }
+        System.out.print("Enter name or ID of hero to edit (0 to cancel): ");
+        String term = scanner.nextLine().trim();
+        if (term.equals("0")) return;
+
+        Optional<Hero> opt = heroService.findById(term);
+        if (opt.isEmpty()) opt = heroService.findByName(term);
+        if (opt.isEmpty()) {
+            System.out.println("Hero not found.");
+            return;
+        }
+        Hero h = opt.get();
+
+        System.out.println();
+        System.out.println("Editing: " + h.getName() + "  (Enter to keep current value)");
+
+        System.out.print("Name [" + h.getName() + "]: ");
+        String val = scanner.nextLine().trim();
+        if (!val.isEmpty()) h.setName(val);
+
+        System.out.print("Type [" + h.getHeroType() + "]: ");
+        String tp = scanner.nextLine().trim().toUpperCase();
+        if (!tp.isEmpty()) {
+            try { h.setHeroType(HeroType.valueOf(tp)); } catch (IllegalArgumentException e) {
+                System.out.println("Invalid type — kept current.");
+            }
+        }
+
+        System.out.print("Base Attack [" + h.getBaseAttack() + "]: ");
+        String atk = scanner.nextLine().trim();
+        if (!atk.isEmpty()) {
+            try { h.setBaseAttack(Integer.parseInt(atk)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Base Defense [" + h.getBaseDefense() + "]: ");
+        String def = scanner.nextLine().trim();
+        if (!def.isEmpty()) {
+            try { h.setBaseDefense(Integer.parseInt(def)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Base HP [" + h.getBaseHp() + "]: ");
+        String hp = scanner.nextLine().trim();
+        if (!hp.isEmpty()) {
+            try { h.setBaseHp(Integer.parseInt(hp)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        saveData();
+        System.out.println("Hero updated.");
+    }
+
+    /* ---- edit equipment ---- */
+    private static void handleEditEquipment() {
+        System.out.println();
+        System.out.println("--- Edit Equipment ---");
+        List<Equipment> ranked = equipService.getRankedEquipment();
+        for (int i = 0; i < ranked.size(); i++) {
+            Equipment e = ranked.get(i);
+            System.out.printf("  %d. %s  (%s)%n", i + 1, e.getName(), e.getType());
+        }
+        System.out.print("Enter name or ID of equipment to edit (0 to cancel): ");
+        String term = scanner.nextLine().trim();
+        if (term.equals("0")) return;
+
+        Equipment eq = null;
+        for (Equipment e : ranked) {
+            if (e.getId().equals(term) || e.getName().equalsIgnoreCase(term)) {
+                eq = e;
+                break;
+            }
+        }
+        if (eq == null) {
+            System.out.println("Equipment not found.");
+            return;
+        }
+
+        System.out.println();
+        System.out.println("Editing: " + eq.getName() + "  (Enter to keep current value)");
+
+        System.out.print("Name [" + eq.getName() + "]: ");
+        String val = scanner.nextLine().trim();
+        if (!val.isEmpty()) eq.setName(val);
+
+        System.out.print("Type [" + eq.getType() + "]: ");
+        String tp = scanner.nextLine().trim().toUpperCase();
+        if (!tp.isEmpty()) {
+            try { eq.setType(EquipmentType.valueOf(tp)); } catch (IllegalArgumentException e) {
+                System.out.println("Invalid type — kept current.");
+            }
+        }
+
+        System.out.print("Price [" + eq.getPrice() + "]: ");
+        String pr = scanner.nextLine().trim();
+        if (!pr.isEmpty()) {
+            try { eq.setPrice(Integer.parseInt(pr)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Attack Bonus [" + eq.getAttackBonus() + "]: ");
+        String atk = scanner.nextLine().trim();
+        if (!atk.isEmpty()) {
+            try { eq.setAttackBonus(Integer.parseInt(atk)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Defense Bonus [" + eq.getDefenseBonus() + "]: ");
+        String def = scanner.nextLine().trim();
+        if (!def.isEmpty()) {
+            try { eq.setDefenseBonus(Integer.parseInt(def)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Magic Bonus [" + eq.getMagicBonus() + "]: ");
+        String mag = scanner.nextLine().trim();
+        if (!mag.isEmpty()) {
+            try { eq.setMagicBonus(Integer.parseInt(mag)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        System.out.print("Description [" + eq.getDescription() + "]: ");
+        String desc = scanner.nextLine().trim();
+        if (!desc.isEmpty()) eq.setDescription(desc);
+
+        saveData();
+        System.out.println("Equipment updated.");
+    }
+
+    /* ---- edit team ---- */
+    private static void handleEditTeam() {
+        System.out.println();
+        System.out.println("--- Edit Team ---");
+        List<Team> all = teamService.listAll();
+        for (int i = 0; i < all.size(); i++) {
+            Team t = all.get(i);
+            System.out.printf("  %d. %s  (%d members)%n", i + 1, t.getName(), t.getMemberIds().size());
+        }
+        System.out.print("Enter name or ID of team to edit (0 to cancel): ");
+        String term = scanner.nextLine().trim();
+        if (term.equals("0")) return;
+
+        Optional<Team> opt = teamService.findById(term);
+        if (opt.isEmpty()) opt = teamService.findByName(term);
+        if (opt.isEmpty()) {
+            System.out.println("Team not found.");
+            return;
+        }
+        Team t = opt.get();
+
+        System.out.println();
+        System.out.println("Editing: " + t.getName() + "  (Enter to keep current value)");
+
+        System.out.print("Name [" + t.getName() + "]: ");
+        String val = scanner.nextLine().trim();
+        if (!val.isEmpty()) t.setName(val);
+
+        System.out.print("Rank [" + t.getRank() + "]: ");
+        String rk = scanner.nextLine().trim().toUpperCase();
+        if (!rk.isEmpty()) {
+            try { t.setRank(Rank.valueOf(rk)); } catch (IllegalArgumentException e) {
+                System.out.println("Invalid rank — kept current.");
+            }
+        }
+
+        // Captain
+        System.out.print("New captain name or ID (Enter to keep): ");
+        String cap = scanner.nextLine().trim();
+        if (!cap.isEmpty()) {
+            if (t.setCaptain(cap)) {
+                System.out.println("Captain updated.");
+            } else {
+                System.out.println("Player not in team — captain unchanged.");
+            }
+        }
+
+        // Add / remove members
+        System.out.println();
+        List<Player> members = teamService.getMembers(t);
+        System.out.print("Current members: ");
+        for (Player m : members) {
+            String star = m.getId().equals(t.getCaptainId()) ? "★" : "";
+            System.out.print(m.getNickname() + star + "  ");
+        }
+        System.out.println();
+
+        System.out.print("Add member (player name/ID, Enter to skip): ");
+        String add = scanner.nextLine().trim();
+        if (!add.isEmpty()) {
+            Optional<Player> mp = playerService.findById(add);
+            if (mp.isEmpty()) mp = playerService.findByName(add);
+            if (mp.isPresent()) {
+                if (t.addMember(mp.get().getId())) {
+                    mp.get().setTeamId(t.getId());
+                    System.out.println("Added " + mp.get().getNickname() + " to team.");
+                } else {
+                    System.out.println("Cannot add — team full or player already in team.");
+                }
+            } else {
+                System.out.println("Player not found.");
+            }
+        }
+
+        System.out.print("Remove member (player name/ID, Enter to skip): ");
+        String rm = scanner.nextLine().trim();
+        if (!rm.isEmpty()) {
+            Optional<Player> mp = playerService.findById(rm);
+            if (mp.isEmpty()) mp = playerService.findByName(rm);
+            if (mp.isPresent()) {
+                if (t.removeMember(mp.get().getId())) {
+                    System.out.println("Removed " + mp.get().getNickname() + " from team.");
+                } else {
+                    System.out.println("Cannot remove — player is captain of multi-member team.");
+                }
+            } else {
+                System.out.println("Player not found.");
+            }
+        }
+
+        saveData();
+        System.out.println("Team updated.");
+    }
+
+    /* ---- edit match ---- */
+    private static void handleEditMatch() {
+        System.out.println();
+        System.out.println("--- Edit Match ---");
+        List<MatchRecord> all = matchService.listAll();
+        displayMatchTable(all);
+
+        System.out.print("Enter match ID to edit (0 to cancel): ");
+        String term = scanner.nextLine().trim();
+        if (term.equals("0")) return;
+
+        Optional<MatchRecord> opt = matchService.findById(term);
+        if (opt.isEmpty()) {
+            System.out.println("Match not found.");
+            return;
+        }
+        MatchRecord m = opt.get();
+
+        System.out.println();
+        System.out.println("Editing: " + m.getId() + "  (Enter to keep current value)");
+
+        System.out.print("Date (YYYY-MM-DD) [" + m.getDate() + "]: ");
+        String dt = scanner.nextLine().trim();
+        if (!dt.isEmpty()) {
+            try { m.setDate(LocalDate.parse(dt)); } catch (Exception e) {
+                System.out.println("Invalid date — kept current.");
+            }
+        }
+
+        System.out.print("Result (WIN/LOSE/DRAW) [" + m.getResult() + "]: ");
+        String res = scanner.nextLine().trim().toUpperCase();
+        if (!res.isEmpty()) {
+            try { m.setResult(MatchResult.valueOf(res)); } catch (IllegalArgumentException e) {
+                System.out.println("Invalid result — kept current.");
+            }
+        }
+
+        System.out.print("MVP player ID [" + (m.getMvpPlayerId() != null ? m.getMvpPlayerId() : "") + "]: ");
+        String mvp = scanner.nextLine().trim();
+        if (!mvp.isEmpty()) m.setMvpPlayerId(mvp);
+
+        System.out.print("Duration minutes [" + m.getDurationMinutes() + "]: ");
+        String dur = scanner.nextLine().trim();
+        if (!dur.isEmpty()) {
+            try { m.setDurationMinutes(Integer.parseInt(dur)); } catch (NumberFormatException e) {
+                System.out.println("Invalid number — kept current.");
+            }
+        }
+
+        saveData();
+        System.out.println("Match updated.");
     }
 }
