@@ -19,7 +19,7 @@ public class TeamService {
     private final Map<String, Player> playerMap;   // playerId → Player
 
     public TeamService(List<Team> teams, List<Player> players) {
-        this.teams = teams;
+        this.teams = new ArrayList<>(teams);
         this.playerMap = new HashMap<>();
         for (Player p : players) {
             playerMap.put(p.getId(), p);

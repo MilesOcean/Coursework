@@ -150,11 +150,18 @@ public class Player extends Person implements Rankable, CsvPersistable {
     public int getMatchCount() { return matchCount; }
     public void setMatchCount(int matchCount) { this.matchCount = matchCount; }
 
-    public List<String> getHeroPool() { return heroPool; }
-    public void setHeroPool(List<String> heroPool) { this.heroPool = heroPool; }
+    public List<String> getHeroPool() { return Collections.unmodifiableList(heroPool); }
+    public void setHeroPool(List<String> heroPool) { this.heroPool = new ArrayList<>(heroPool); }
 
-    public Map<String, List<String>> getEquippedItems() { return equippedItems; }
-    public void setEquippedItems(Map<String, List<String>> equippedItems) { this.equippedItems = equippedItems; }
+    public Map<String, List<String>> getEquippedItems() { return Collections.unmodifiableMap(equippedItems); }
+    public void setEquippedItems(Map<String, List<String>> equippedItems) {
+        this.equippedItems = new HashMap<>();
+        if (equippedItems != null) {
+            for (Map.Entry<String, List<String>> e : equippedItems.entrySet()) {
+                this.equippedItems.put(e.getKey(), new ArrayList<>(e.getValue()));
+            }
+        }
+    }
 
     public String getTeamId() { return teamId; }
     public void setTeamId(String teamId) { this.teamId = teamId; }

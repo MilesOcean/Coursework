@@ -28,7 +28,7 @@ public class PlayerService {
      */
     public PlayerService(List<Player> players, List<Hero> heroes,
                          List<Equipment> equipment, List<Team> teams) {
-        this.players = players;
+        this.players = new ArrayList<>(players);
 
         this.heroMap = new HashMap<>();
         for (Hero h : heroes) heroMap.put(h.getId(), h);

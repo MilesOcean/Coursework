@@ -20,7 +20,7 @@ public class EquipmentService {
     private Map<String, Integer> usageCache;
 
     public EquipmentService(List<Equipment> equipment, List<Player> players) {
-        this.equipment = equipment;
+        this.equipment = new ArrayList<>(equipment);
         this.usageCache = null;
         computeUsage(players);
     }
