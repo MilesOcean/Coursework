@@ -1,4 +1,5 @@
 import model.*;
+import service.HeroService;
 import service.PlayerService;
 import service.TeamService;
 import util.DataInitializer;
@@ -16,6 +17,7 @@ import java.util.Scanner;
  * Currently implemented:
  *   - Player lookup (by ID or name) — plan.md §2.1
  *   - Team overview (list all + roster detail) — plan.md §2.2
+ *   - Hero details (search + stats + owners) — plan.md §2.3
  *
  * Future: admin menu, team overview, hero details, leaderboard, etc.
  */
@@ -26,6 +28,7 @@ public class Main {
     /* shared state */
     private static PlayerService playerService;
     private static TeamService   teamService;
+    private static HeroService   heroService;
 
     public static void main(String[] args) {
         System.out.println("Loading data...");
@@ -44,6 +47,8 @@ public class Main {
                 init.getEquipment(),
                 init.getTeams());
         teamService = new TeamService(init.getTeams(), init.getPlayers());
+        heroService = new HeroService(init.getHeroes(), init.getPlayers(),
+                init.getEquipment());
         System.out.println("  Loaded: " + init.getPlayers().size() + " players, "
                 + init.getHeroes().size() + " heroes, "
                 + init.getEquipment().size() + " equipment, "
@@ -58,6 +63,7 @@ public class Main {
             System.out.println("===== Honor of Kings Management System =====");
             System.out.println("1. Player Lookup");
             System.out.println("2. Team Overview");
+            System.out.println("3. Hero Details");
             System.out.println("0. Exit");
             System.out.println("============================================");
             System.out.print("Choice > ");
@@ -71,11 +77,14 @@ public class Main {
                 case "2":
                     handleTeamOverview();
                     break;
+                case "3":
+                    handleHeroDetails();
+                    break;
                 case "0":
                     System.out.println("Goodbye!");
                     return;
                 default:
-                    System.out.println("Invalid option. Please enter 1, 2, or 0.");
+                    System.out.println("Invalid option. Please enter 1–3 or 0.");
             }
         }
     }
@@ -222,5 +231,48 @@ public class Main {
                     + " (WinRate: " + String.format("%.1f%%", top.getWinRate())
                     + ", Level: " + top.getLevel() + ")");
         }
+    }
+
+    /* ---- hero details (plan.md §2.3) ---- */
+    private static void handleHeroDetails() {
+        System.out.println();
+        System.out.println("--- Hero Details ---");
+        System.out.print("Enter hero ID or name (or 0 to cancel): ");
+        String term = scanner.nextLine().trim();
+
+        if (term.equals("0")) return;
+        if (term.isEmpty()) {
+            System.out.println("Error: search term cannot be empty.");
+            return;
+        }
+
+        // Try ID first, then name
+        Optional<Hero> result = heroService.findById(term);
+        if (result.isEmpty()) {
+            result = heroService.findByName(term);
+        }
+
+        if (result.isEmpty()) {
+            System.out.println("No hero found with ID or name: \"" + term + "\"");
+            return;
+        }
+
+        displayHero(result.get());
+    }
+
+    private static void displayHero(Hero h) {
+        System.out.println();
+        System.out.println("┌──────────────────────────────────────────┐");
+        System.out.printf("  ID:       %s%n", h.getId());
+        System.out.printf("  Name:     %s%n", h.getName());
+        System.out.printf("  Type:     %s%n", h.getHeroType());
+        System.out.printf("  Stats:    %s%n", heroService.formatBaseStats(h));
+        System.out.println("└──────────────────────────────────────────┘");
+
+        // Compatible equipment
+        System.out.println("  Compatible Equipment: " + heroService.formatCompatibleEquipment(h));
+
+        // Owners
+        System.out.println("  Owned by: " + heroService.formatOwners(h));
     }
 }
