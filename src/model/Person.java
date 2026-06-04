@@ -2,14 +2,15 @@ package model;
 
 import enums.Role;
 import interfaces.Authenticatable;
+import util.PasswordHasher;
 
 /**
  * Abstract base class for all human actors.
  *
  * Design decisions (from design.md §2.1, §6):
- * - passwordHash + salt are stored; AuthService handles verification.
+ * - passwordHash + salt are stored.
  * - "authenticated" is a transient in-memory flag — never written to CSV.
- * - login() is called by AuthService AFTER external credential check.
+ * - login() computes SHA-256(salt + password) and compares to passwordHash.
  */
 public abstract class Person implements Authenticatable {
 
@@ -37,13 +38,20 @@ public abstract class Person implements Authenticatable {
 
     /* ---- Authenticatable implementation ---- */
     /**
-     * Sets the session flag. AuthService MUST verify the password hash
-     * against the stored salt+hash BEFORE calling this method.
+     * Verifies credentials by computing SHA-256(salt + password) and comparing
+     * to the stored passwordHash. Username must also match (case-insensitive).
+     * Sets the session flag on success.
      */
     @Override
     public boolean login(String username, String password) {
-        this.authenticated = true;
-        return true;
+        if (username == null || password == null) return false;
+        if (!this.username.equalsIgnoreCase(username.trim())) return false;
+        String computed = PasswordHasher.hash(this.salt, password);
+        if (computed.equals(this.passwordHash)) {
+            this.authenticated = true;
+            return true;
+        }
+        return false;
     }
 
     @Override
