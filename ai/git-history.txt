@@ -1,3 +1,4 @@
+* bd001ab [[Docs] synchronize all documentation with actual code state after CRUD + match history fixes]  (2026-06-04)
 * 74ca590 [[Test] add manual test cases covering happy path, RBAC, persistence, review-fix regression, and known limitations]  (2026-06-04)
 * 81b2d2d [[Fix] fix bugs found during reviewer check]  (2026-06-04)
 * bf4da48 [[AI-Implementation] add CsvPersistable interface and CSV save/load with graceful error handling]  (2026-06-04)
